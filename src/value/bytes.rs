@@ -4,7 +4,6 @@ use serde::de::SeqAccess;
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde_json::Number;
 use std::fmt;
-use std::marker::PhantomData;
 
 impl Value {
     pub fn from_bytes(data: Bytes) -> Result<Value, serde_json::Error> {
@@ -126,13 +125,14 @@ impl<'de> Visitor<'de> for BytesSeed {
     where
         V: MapAccess<'de>,
     {
-        match visitor.next_key()? {
+        match visitor.next_key_seed(ByteStringSeed::new(self.bytes.clone()))? {
             Some(first_key) => {
                 let mut values = Map::new();
 
                 values.insert(first_key, tri!(visitor.next_value_seed(self.clone())));
                 while let Some((key, value)) =
-                    tri!(visitor.next_entry_seed(PhantomData, self.clone()))
+                    tri!(visitor
+                        .next_entry_seed(ByteStringSeed::new(self.bytes.clone()), self.clone()))
                 {
                     values.insert(key, value);
                 }
@@ -141,5 +141,59 @@ impl<'de> Visitor<'de> for BytesSeed {
             }
             None => Ok(Value::Object(Map::new())),
         }
+    }
+}
+
+#[derive(Clone)]
+struct ByteStringSeed {
+    bytes: Bytes,
+}
+
+impl ByteStringSeed {
+    fn new(bytes: Bytes) -> Self {
+        ByteStringSeed { bytes }
+    }
+}
+
+impl<'de> DeserializeSeed<'de> for ByteStringSeed {
+    type Value = ByteString;
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(self)
+    }
+}
+
+impl<'de> Visitor<'de> for ByteStringSeed {
+    type Value = ByteString;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("any valid JSON value")
+    }
+
+    #[inline]
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(value.into())
+    }
+
+    #[inline]
+    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ByteString::new(&self.bytes, value))
+    }
+
+    #[inline]
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(value.into())
     }
 }

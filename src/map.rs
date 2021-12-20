@@ -6,10 +6,10 @@
 //! [`BTreeMap`]: https://doc.rust-lang.org/std/collections/struct.BTreeMap.html
 //! [`IndexMap`]: https://docs.rs/indexmap/*/indexmap/map/struct.IndexMap.html
 
-use crate::lib::borrow::Borrow;
 use crate::lib::iter::FromIterator;
 use crate::lib::*;
 use crate::value::Value;
+use crate::{lib::borrow::Borrow, ByteString};
 use serde::de;
 
 #[cfg(feature = "preserve_order")]
@@ -25,7 +25,7 @@ type MapImpl<K, V> = BTreeMap<K, V>;
 #[cfg(feature = "preserve_order")]
 type MapImpl<K, V> = IndexMap<K, V>;
 
-impl Map<String, Value> {
+impl Map<ByteString, Value> {
     /// Makes a new empty Map.
     #[inline]
     pub fn new() -> Self {
@@ -62,7 +62,7 @@ impl Map<String, Value> {
     #[inline]
     pub fn get<Q>(&self, key: &Q) -> Option<&Value>
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         self.map.get(key)
@@ -75,7 +75,7 @@ impl Map<String, Value> {
     #[inline]
     pub fn contains_key<Q>(&self, key: &Q) -> bool
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         self.map.contains_key(key)
@@ -88,7 +88,7 @@ impl Map<String, Value> {
     #[inline]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut Value>
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         self.map.get_mut(key)
@@ -100,9 +100,9 @@ impl Map<String, Value> {
     /// on the borrowed form *must* match the ordering on the key type.
     #[inline]
     #[cfg(any(feature = "preserve_order", not(no_btreemap_get_key_value)))]
-    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&String, &Value)>
+    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&ByteString, &Value)>
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         self.map.get_key_value(key)
@@ -115,8 +115,11 @@ impl Map<String, Value> {
     /// If the map did have this key present, the value is updated, and the old
     /// value is returned.
     #[inline]
-    pub fn insert(&mut self, k: String, v: Value) -> Option<Value> {
-        self.map.insert(k, v)
+    pub fn insert<K>(&mut self, k: K, v: Value) -> Option<Value>
+    where
+        K: Into<ByteString>,
+    {
+        self.map.insert(k.into(), v)
     }
 
     /// Removes a key from the map, returning the value at the key if the key
@@ -127,7 +130,7 @@ impl Map<String, Value> {
     #[inline]
     pub fn remove<Q>(&mut self, key: &Q) -> Option<Value>
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         #[cfg(feature = "preserve_order")]
@@ -141,9 +144,9 @@ impl Map<String, Value> {
     ///
     /// The key may be any borrowed form of the map's key type, but the ordering
     /// on the borrowed form *must* match the ordering on the key type.
-    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(String, Value)>
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(ByteString, Value)>
     where
-        String: Borrow<Q>,
+        ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
         #[cfg(any(feature = "preserve_order", not(no_btreemap_remove_entry)))]
@@ -156,7 +159,7 @@ impl Map<String, Value> {
         {
             let (key, _value) = self.map.get_key_value(key)?;
             let key = key.clone();
-            let value = self.map.remove::<String>(&key)?;
+            let value = self.map.remove::<ByteString>(&key)?;
             Some((key, value))
         }
         #[cfg(all(
@@ -179,7 +182,7 @@ impl Map<String, Value> {
             let mut range = self.map.range(Key(key));
             let (key, _value) = range.next()?;
             let key = key.clone();
-            let value = self.map.remove::<String>(&key)?;
+            let value = self.map.remove::<ByteString>(&key)?;
             Some((key, value))
         }
     }
@@ -199,7 +202,7 @@ impl Map<String, Value> {
     /// manipulation.
     pub fn entry<S>(&mut self, key: S) -> Entry
     where
-        S: Into<String>,
+        S: Into<ByteString>,
     {
         #[cfg(not(feature = "preserve_order"))]
         use crate::lib::btree_map::Entry as EntryImpl;
@@ -272,14 +275,14 @@ impl Map<String, Value> {
     #[inline]
     pub fn retain<F>(&mut self, f: F)
     where
-        F: FnMut(&String, &mut Value) -> bool,
+        F: FnMut(&ByteString, &mut Value) -> bool,
     {
         self.map.retain(f);
     }
 }
 
 #[allow(clippy::derivable_impls)] // clippy bug: https://github.com/rust-lang/rust-clippy/issues/7655
-impl Default for Map<String, Value> {
+impl Default for Map<ByteString, Value> {
     #[inline]
     fn default() -> Self {
         Map {
@@ -288,7 +291,7 @@ impl Default for Map<String, Value> {
     }
 }
 
-impl Clone for Map<String, Value> {
+impl Clone for Map<ByteString, Value> {
     #[inline]
     fn clone(&self) -> Self {
         Map {
@@ -297,14 +300,14 @@ impl Clone for Map<String, Value> {
     }
 }
 
-impl PartialEq for Map<String, Value> {
+impl PartialEq for Map<ByteString, Value> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.map.eq(&other.map)
     }
 }
 
-impl Eq for Map<String, Value> {}
+impl Eq for Map<ByteString, Value> {}
 
 /// Access an element of this map. Panics if the given key is not present in the
 /// map.
@@ -322,9 +325,9 @@ impl Eq for Map<String, Value> {}
 /// }
 /// # ;
 /// ```
-impl<'a, Q> ops::Index<&'a Q> for Map<String, Value>
+impl<'a, Q> ops::Index<&'a Q> for Map<ByteString, Value>
 where
-    String: Borrow<Q>,
+    ByteString: Borrow<Q>,
     Q: ?Sized + Ord + Eq + Hash,
 {
     type Output = Value;
@@ -345,9 +348,9 @@ where
 /// #
 /// map["key"] = json!("value");
 /// ```
-impl<'a, Q> ops::IndexMut<&'a Q> for Map<String, Value>
+impl<'a, Q> ops::IndexMut<&'a Q> for Map<ByteString, Value>
 where
-    String: Borrow<Q>,
+    ByteString: Borrow<Q>,
     Q: ?Sized + Ord + Eq + Hash,
 {
     fn index_mut(&mut self, index: &Q) -> &mut Value {
@@ -355,7 +358,7 @@ where
     }
 }
 
-impl Debug for Map<String, Value> {
+impl Debug for Map<ByteString, Value> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         self.map.fmt(formatter)
@@ -363,7 +366,7 @@ impl Debug for Map<String, Value> {
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl serde::ser::Serialize for Map<String, Value> {
+impl serde::ser::Serialize for Map<ByteString, Value> {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -378,7 +381,7 @@ impl serde::ser::Serialize for Map<String, Value> {
     }
 }
 
-impl<'de> de::Deserialize<'de> for Map<String, Value> {
+impl<'de> de::Deserialize<'de> for Map<ByteString, Value> {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -387,7 +390,7 @@ impl<'de> de::Deserialize<'de> for Map<String, Value> {
         struct Visitor;
 
         impl<'de> de::Visitor<'de> for Visitor {
-            type Value = Map<String, Value>;
+            type Value = Map<ByteString, Value>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a map")
@@ -410,7 +413,8 @@ impl<'de> de::Deserialize<'de> for Map<String, Value> {
                 let mut values = Map::new();
 
                 while let Some((key, value)) = tri!(visitor.next_entry()) {
-                    values.insert(key, value);
+                    let k: String = key;
+                    values.insert(k, value);
                 }
 
                 Ok(values)
@@ -421,10 +425,10 @@ impl<'de> de::Deserialize<'de> for Map<String, Value> {
     }
 }
 
-impl FromIterator<(String, Value)> for Map<String, Value> {
+impl FromIterator<(ByteString, Value)> for Map<ByteString, Value> {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = (String, Value)>,
+        T: IntoIterator<Item = (ByteString, Value)>,
     {
         Map {
             map: FromIterator::from_iter(iter),
@@ -432,10 +436,10 @@ impl FromIterator<(String, Value)> for Map<String, Value> {
     }
 }
 
-impl Extend<(String, Value)> for Map<String, Value> {
+impl Extend<(ByteString, Value)> for Map<ByteString, Value> {
     fn extend<T>(&mut self, iter: T)
     where
-        T: IntoIterator<Item = (String, Value)>,
+        T: IntoIterator<Item = (ByteString, Value)>,
     {
         self.map.extend(iter);
     }
@@ -502,14 +506,14 @@ pub struct OccupiedEntry<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type VacantEntryImpl<'a> = btree_map::VacantEntry<'a, String, Value>;
+type VacantEntryImpl<'a> = btree_map::VacantEntry<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type VacantEntryImpl<'a> = indexmap::map::VacantEntry<'a, String, Value>;
+type VacantEntryImpl<'a> = indexmap::map::VacantEntry<'a, ByteString, Value>;
 
 #[cfg(not(feature = "preserve_order"))]
-type OccupiedEntryImpl<'a> = btree_map::OccupiedEntry<'a, String, Value>;
+type OccupiedEntryImpl<'a> = btree_map::OccupiedEntry<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type OccupiedEntryImpl<'a> = indexmap::map::OccupiedEntry<'a, String, Value>;
+type OccupiedEntryImpl<'a> = indexmap::map::OccupiedEntry<'a, ByteString, Value>;
 
 impl<'a> Entry<'a> {
     /// Returns a reference to this entry's key.
@@ -520,7 +524,7 @@ impl<'a> Entry<'a> {
     /// let mut map = serde_json::Map::new();
     /// assert_eq!(map.entry("serde").key(), &"serde");
     /// ```
-    pub fn key(&self) -> &String {
+    pub fn key(&self) -> &ByteString {
         match *self {
             Entry::Vacant(ref e) => e.key(),
             Entry::Occupied(ref e) => e.key(),
@@ -625,7 +629,7 @@ impl<'a> VacantEntry<'a> {
     /// }
     /// ```
     #[inline]
-    pub fn key(&self) -> &String {
+    pub fn key(&self) -> &ByteString {
         self.vacant.key()
     }
 
@@ -675,7 +679,7 @@ impl<'a> OccupiedEntry<'a> {
     /// }
     /// ```
     #[inline]
-    pub fn key(&self) -> &String {
+    pub fn key(&self) -> &ByteString {
         self.occupied.key()
     }
 
@@ -811,8 +815,8 @@ impl<'a> OccupiedEntry<'a> {
 
 //////////////////////////////////////////////////////////////////////////////
 
-impl<'a> IntoIterator for &'a Map<String, Value> {
-    type Item = (&'a String, &'a Value);
+impl<'a> IntoIterator for &'a Map<ByteString, Value> {
+    type Item = (&'a ByteString, &'a Value);
     type IntoIter = Iter<'a>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -828,16 +832,16 @@ pub struct Iter<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type IterImpl<'a> = btree_map::Iter<'a, String, Value>;
+type IterImpl<'a> = btree_map::Iter<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type IterImpl<'a> = indexmap::map::Iter<'a, String, Value>;
+type IterImpl<'a> = indexmap::map::Iter<'a, ByteString, Value>;
 
-delegate_iterator!((Iter<'a>) => (&'a String, &'a Value));
+delegate_iterator!((Iter<'a>) => (&'a ByteString, &'a Value));
 
 //////////////////////////////////////////////////////////////////////////////
 
-impl<'a> IntoIterator for &'a mut Map<String, Value> {
-    type Item = (&'a String, &'a mut Value);
+impl<'a> IntoIterator for &'a mut Map<ByteString, Value> {
+    type Item = (&'a ByteString, &'a mut Value);
     type IntoIter = IterMut<'a>;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -853,16 +857,16 @@ pub struct IterMut<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type IterMutImpl<'a> = btree_map::IterMut<'a, String, Value>;
+type IterMutImpl<'a> = btree_map::IterMut<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type IterMutImpl<'a> = indexmap::map::IterMut<'a, String, Value>;
+type IterMutImpl<'a> = indexmap::map::IterMut<'a, ByteString, Value>;
 
-delegate_iterator!((IterMut<'a>) => (&'a String, &'a mut Value));
+delegate_iterator!((IterMut<'a>) => (&'a ByteString, &'a mut Value));
 
 //////////////////////////////////////////////////////////////////////////////
 
-impl IntoIterator for Map<String, Value> {
-    type Item = (String, Value);
+impl IntoIterator for Map<ByteString, Value> {
+    type Item = (ByteString, Value);
     type IntoIter = IntoIter;
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -878,11 +882,11 @@ pub struct IntoIter {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type IntoIterImpl = btree_map::IntoIter<String, Value>;
+type IntoIterImpl = btree_map::IntoIter<ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type IntoIterImpl = indexmap::map::IntoIter<String, Value>;
+type IntoIterImpl = indexmap::map::IntoIter<ByteString, Value>;
 
-delegate_iterator!((IntoIter) => (String, Value));
+delegate_iterator!((IntoIter) => (ByteString, Value));
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -892,11 +896,11 @@ pub struct Keys<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type KeysImpl<'a> = btree_map::Keys<'a, String, Value>;
+type KeysImpl<'a> = btree_map::Keys<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type KeysImpl<'a> = indexmap::map::Keys<'a, String, Value>;
+type KeysImpl<'a> = indexmap::map::Keys<'a, ByteString, Value>;
 
-delegate_iterator!((Keys<'a>) => &'a String);
+delegate_iterator!((Keys<'a>) => &'a ByteString);
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -906,9 +910,9 @@ pub struct Values<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type ValuesImpl<'a> = btree_map::Values<'a, String, Value>;
+type ValuesImpl<'a> = btree_map::Values<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type ValuesImpl<'a> = indexmap::map::Values<'a, String, Value>;
+type ValuesImpl<'a> = indexmap::map::Values<'a, ByteString, Value>;
 
 delegate_iterator!((Values<'a>) => &'a Value);
 
@@ -920,8 +924,8 @@ pub struct ValuesMut<'a> {
 }
 
 #[cfg(not(feature = "preserve_order"))]
-type ValuesMutImpl<'a> = btree_map::ValuesMut<'a, String, Value>;
+type ValuesMutImpl<'a> = btree_map::ValuesMut<'a, ByteString, Value>;
 #[cfg(feature = "preserve_order")]
-type ValuesMutImpl<'a> = indexmap::map::ValuesMut<'a, String, Value>;
+type ValuesMutImpl<'a> = indexmap::map::ValuesMut<'a, ByteString, Value>;
 
 delegate_iterator!((ValuesMut<'a>) => &'a mut Value);

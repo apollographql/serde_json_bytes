@@ -166,7 +166,7 @@ pub enum Value {
     /// #
     /// let v = json!({ "an": "object" });
     /// ```
-    Object(Map<String, Value>),
+    Object(Map<ByteString, Value>),
 }
 
 impl Debug for Value {
@@ -360,7 +360,7 @@ impl Value {
     /// // The array `["an", "array"]` is not an object.
     /// assert_eq!(v["b"].as_object(), None);
     /// ```
-    pub fn as_object(&self) -> Option<&Map<String, Value>> {
+    pub fn as_object(&self) -> Option<&Map<ByteString, Value>> {
         match *self {
             Value::Object(ref map) => Some(map),
             _ => None,
@@ -378,7 +378,7 @@ impl Value {
     /// v["a"].as_object_mut().unwrap().clear();
     /// assert_eq!(v, json!({ "a": {} }));
     /// ```
-    pub fn as_object_mut(&mut self) -> Option<&mut Map<String, Value>> {
+    pub fn as_object_mut(&mut self) -> Option<&mut Map<ByteString, Value>> {
         match *self {
             Value::Object(ref mut map) => Some(map),
             _ => None,
@@ -763,7 +763,7 @@ impl Value {
             .skip(1)
             .map(|x| x.replace("~1", "/").replace("~0", "~"))
             .try_fold(self, |target, token| match target {
-                Value::Object(map) => map.get(&token),
+                Value::Object(map) => map.get(token.as_str()),
                 Value::Array(list) => parse_index(&token).and_then(|x| list.get(x)),
                 _ => None,
             })
@@ -818,7 +818,7 @@ impl Value {
             .skip(1)
             .map(|x| x.replace("~1", "/").replace("~0", "~"))
             .try_fold(self, |target, token| match target {
-                Value::Object(map) => map.get_mut(&token),
+                Value::Object(map) => map.get_mut(token.as_str()),
                 Value::Array(list) => parse_index(&token).and_then(move |x| list.get_mut(x)),
                 _ => None,
             })

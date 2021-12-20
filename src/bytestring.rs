@@ -1,12 +1,12 @@
-use std::fmt;
+use std::{borrow::Borrow, fmt};
 
 use bytes::Bytes;
 use serde::{
     de::{Error, Visitor},
-    Deserialize, Deserializer,
+    Deserialize, Deserializer, Serialize,
 };
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct ByteString(Bytes);
 
 /// read only string backed by a `Bytes` buffer
@@ -44,6 +44,18 @@ impl PartialEq<ByteString> for String {
     }
 }
 
+impl Borrow<str> for ByteString {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::fmt::Debug for ByteString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
 struct ByteStringVisitor;
 
 impl<'de> Visitor<'de> for ByteStringVisitor {
@@ -74,5 +86,15 @@ impl<'de> Deserialize<'de> for ByteString {
         D: Deserializer<'de>,
     {
         deserializer.deserialize_str(ByteStringVisitor)
+    }
+}
+
+impl Serialize for ByteString {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
     }
 }

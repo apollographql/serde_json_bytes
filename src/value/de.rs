@@ -1,7 +1,7 @@
 use crate::lib::str::FromStr;
-use crate::lib::*;
 use crate::map::Map;
 use crate::value::Value;
+use crate::{lib::*, ByteString};
 use serde::de::{
     self, Deserialize, DeserializeSeed, EnumAccess, Expected, IntoDeserializer, MapAccess,
     SeqAccess, Unexpected, VariantAccess, Visitor,
@@ -116,7 +116,11 @@ impl<'de> Deserialize<'de> for Value {
 
                         values.insert(first_key, tri!(visitor.next_value()));
                         while let Some((key, value)) = tri!(visitor.next_entry()) {
-                            values.insert(key, value);
+                            let k: Cow<'de, str> = key;
+                            match k {
+                                Cow::Borrowed(s) => values.insert(s, value),
+                                Cow::Owned(s) => values.insert(s, value),
+                            };
                         }
 
                         Ok(Value::Object(values))
@@ -181,7 +185,7 @@ where
     }
 }
 
-fn visit_object<'de, V>(object: Map<String, Value>, visitor: V) -> Result<V::Value, Error>
+fn visit_object<'de, V>(object: Map<ByteString, Value>, visitor: V) -> Result<V::Value, Error>
 where
     V: Visitor<'de>,
 {
@@ -274,7 +278,7 @@ impl<'de> serde::Deserializer<'de> for Value {
                         &"map with a single key",
                     ));
                 }
-                (variant, Some(value))
+                (variant.as_str().to_string(), Some(value))
             }
             Value::String(variant) => (variant.as_str().to_string(), None),
             other => {
@@ -585,12 +589,12 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
 }
 
 struct MapDeserializer {
-    iter: <Map<String, Value> as IntoIterator>::IntoIter,
+    iter: <Map<ByteString, Value> as IntoIterator>::IntoIter,
     value: Option<Value>,
 }
 
 impl MapDeserializer {
-    fn new(map: Map<String, Value>) -> Self {
+    fn new(map: Map<ByteString, Value>) -> Self {
         MapDeserializer {
             iter: map.into_iter(),
             value: None,
@@ -609,7 +613,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
             Some((key, value)) => {
                 self.value = Some(value);
                 let key_de = MapKeyDeserializer {
-                    key: Cow::Owned(key),
+                    key: Cow::Owned(key.as_str().to_string()),
                 };
                 seed.deserialize(key_de).map(Some)
             }
@@ -679,7 +683,10 @@ where
     }
 }
 
-fn visit_object_ref<'de, V>(object: &'de Map<String, Value>, visitor: V) -> Result<V::Value, Error>
+fn visit_object_ref<'de, V>(
+    object: &'de Map<ByteString, Value>,
+    visitor: V,
+) -> Result<V::Value, Error>
 where
     V: Visitor<'de>,
 {
@@ -1066,12 +1073,12 @@ impl<'de> SeqAccess<'de> for SeqRefDeserializer<'de> {
 }
 
 struct MapRefDeserializer<'de> {
-    iter: <&'de Map<String, Value> as IntoIterator>::IntoIter,
+    iter: <&'de Map<ByteString, Value> as IntoIterator>::IntoIter,
     value: Option<&'de Value>,
 }
 
 impl<'de> MapRefDeserializer<'de> {
-    fn new(map: &'de Map<String, Value>) -> Self {
+    fn new(map: &'de Map<ByteString, Value>) -> Self {
         MapRefDeserializer {
             iter: map.into_iter(),
             value: None,
@@ -1090,7 +1097,7 @@ impl<'de> MapAccess<'de> for MapRefDeserializer<'de> {
             Some((key, value)) => {
                 self.value = Some(value);
                 let key_de = MapKeyDeserializer {
-                    key: Cow::Borrowed(&**key),
+                    key: Cow::Borrowed(key.as_str()),
                 };
                 seed.deserialize(key_de).map(Some)
             }

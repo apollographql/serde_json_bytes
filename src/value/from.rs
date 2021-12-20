@@ -1,7 +1,7 @@
 use super::Value;
 use crate::lib::iter::FromIterator;
-use crate::lib::*;
 use crate::map::Map;
+use crate::{lib::*, ByteString};
 use serde_json::Number;
 
 #[cfg(feature = "arbitrary_precision")]
@@ -152,7 +152,7 @@ impl From<Number> for Value {
     }
 }
 
-impl From<Map<String, Value>> for Value {
+impl From<Map<ByteString, Value>> for Value {
     /// Convert map (with string keys) to `Value`
     ///
     /// # Examples
@@ -164,7 +164,7 @@ impl From<Map<String, Value>> for Value {
     /// m.insert("Lorem".to_string(), "ipsum".into());
     /// let x: Value = m.into();
     /// ```
-    fn from(f: Map<String, Value>) -> Self {
+    fn from(f: Map<ByteString, Value>) -> Self {
         Value::Object(f)
     }
 }
@@ -231,7 +231,7 @@ impl<T: Into<Value>> FromIterator<T> for Value {
     }
 }
 
-impl<K: Into<String>, V: Into<Value>> FromIterator<(K, V)> for Value {
+impl<K: Into<ByteString>, V: Into<Value>> FromIterator<(K, V)> for Value {
     /// Convert an iteratable type to a `Value`
     ///
     /// # Examples

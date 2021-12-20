@@ -1,6 +1,6 @@
-use crate::lib::*;
 use crate::map::Map;
 use crate::value::{to_value, Value};
+use crate::{lib::*, ByteString};
 use serde::de::Unexpected;
 use serde::ser::{Impossible, Serialize};
 use serde_json::error::{Error, Result};
@@ -289,7 +289,7 @@ pub struct SerializeTupleVariant {
 
 pub enum SerializeMap {
     Map {
-        map: Map<String, Value>,
+        map: Map<ByteString, Value>,
         next_key: Option<String>,
     },
     #[cfg(feature = "arbitrary_precision")]
@@ -300,7 +300,7 @@ pub enum SerializeMap {
 
 pub struct SerializeStructVariant {
     name: String,
-    map: Map<String, Value>,
+    map: Map<ByteString, Value>,
 }
 
 impl serde::ser::SerializeSeq for SerializeVec {

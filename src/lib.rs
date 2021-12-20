@@ -67,5 +67,6 @@ macro_rules! tri {
     };
 }
 
+mod bytestring;
 mod map;
 mod value;

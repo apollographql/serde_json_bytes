@@ -7,24 +7,24 @@ use std::fmt;
 
 impl Value {
     pub fn from_bytes(data: Bytes) -> Result<Value, serde_json::Error> {
-        let seed = BytesSeed::new(data.clone());
+        let seed = BytesSeed::new(&data);
         let mut de = serde_json::Deserializer::from_slice(&data);
         seed.deserialize(&mut de)
     }
 }
 
-#[derive(Clone)]
-struct BytesSeed {
-    bytes: Bytes,
+#[derive(Clone, Copy)]
+struct BytesSeed<'data> {
+    bytes: &'data Bytes,
 }
 
-impl BytesSeed {
-    fn new(bytes: Bytes) -> Self {
+impl<'data> BytesSeed<'data> {
+    fn new(bytes: &'data Bytes) -> Self {
         BytesSeed { bytes }
     }
 }
 
-impl<'de> DeserializeSeed<'de> for BytesSeed {
+impl<'de, 'data> DeserializeSeed<'de> for BytesSeed<'data> {
     type Value = Value;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -35,7 +35,7 @@ impl<'de> DeserializeSeed<'de> for BytesSeed {
     }
 }
 
-impl<'de> Visitor<'de> for BytesSeed {
+impl<'de, 'data> Visitor<'de> for BytesSeed<'data> {
     type Value = Value;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -125,14 +125,13 @@ impl<'de> Visitor<'de> for BytesSeed {
     where
         V: MapAccess<'de>,
     {
-        match visitor.next_key_seed(ByteStringSeed::new(self.bytes.clone()))? {
+        match visitor.next_key_seed(ByteStringSeed::new(&self.bytes))? {
             Some(first_key) => {
                 let mut values = Map::new();
 
                 values.insert(first_key, tri!(visitor.next_value_seed(self.clone())));
                 while let Some((key, value)) =
-                    tri!(visitor
-                        .next_entry_seed(ByteStringSeed::new(self.bytes.clone()), self.clone()))
+                    tri!(visitor.next_entry_seed(ByteStringSeed::new(&self.bytes), self.clone()))
                 {
                     values.insert(key, value);
                 }
@@ -144,18 +143,18 @@ impl<'de> Visitor<'de> for BytesSeed {
     }
 }
 
-#[derive(Clone)]
-struct ByteStringSeed {
-    bytes: Bytes,
+#[derive(Clone, Copy)]
+struct ByteStringSeed<'data> {
+    bytes: &'data Bytes,
 }
 
-impl ByteStringSeed {
-    fn new(bytes: Bytes) -> Self {
+impl<'data> ByteStringSeed<'data> {
+    fn new(bytes: &'data Bytes) -> Self {
         ByteStringSeed { bytes }
     }
 }
 
-impl<'de> DeserializeSeed<'de> for ByteStringSeed {
+impl<'de, 'data> DeserializeSeed<'de> for ByteStringSeed<'data> {
     type Value = ByteString;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -166,7 +165,7 @@ impl<'de> DeserializeSeed<'de> for ByteStringSeed {
     }
 }
 
-impl<'de> Visitor<'de> for ByteStringSeed {
+impl<'de, 'data> Visitor<'de> for ByteStringSeed<'data> {
     type Value = ByteString;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

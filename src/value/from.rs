@@ -91,7 +91,7 @@ impl From<String> for Value {
     /// let x: Value = s.into();
     /// ```
     fn from(f: String) -> Self {
-        Value::String(f)
+        Value::String(f.into())
     }
 }
 
@@ -107,7 +107,7 @@ impl<'a> From<&'a str> for Value {
     /// let x: Value = s.into();
     /// ```
     fn from(f: &str) -> Self {
-        Value::String(f.to_string())
+        Value::String(f.to_string().into())
     }
 }
 
@@ -132,7 +132,7 @@ impl<'a> From<Cow<'a, str>> for Value {
     /// let x: Value = s.into();
     /// ```
     fn from(f: Cow<'a, str>) -> Self {
-        Value::String(f.into_owned())
+        Value::String(f.into_owned().into())
     }
 }
 

@@ -19,7 +19,7 @@ impl Serialize for Value {
             Value::Null => serializer.serialize_unit(),
             Value::Bool(b) => serializer.serialize_bool(b),
             Value::Number(ref n) => n.serialize(serializer),
-            Value::String(ref s) => serializer.serialize_str(s),
+            Value::String(ref s) => serializer.serialize_str(s.as_str()),
             Value::Array(ref v) => v.serialize(serializer),
             #[cfg(any(feature = "std", feature = "alloc"))]
             Value::Object(ref m) => {
@@ -140,12 +140,12 @@ impl serde::Serializer for Serializer {
     fn serialize_char(self, value: char) -> Result<Value> {
         let mut s = String::new();
         s.push(value);
-        Ok(Value::String(s))
+        Ok(Value::String(s.into()))
     }
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<Value> {
-        Ok(Value::String(value.to_owned()))
+        Ok(Value::String(value.into()))
     }
 
     fn serialize_bytes(self, value: &[u8]) -> Result<Value> {
@@ -274,7 +274,7 @@ impl serde::Serializer for Serializer {
     where
         T: Display,
     {
-        Ok(Value::String(value.to_string()))
+        Ok(Value::String(value.to_string().into()))
     }
 }
 

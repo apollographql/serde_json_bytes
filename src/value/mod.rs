@@ -90,7 +90,7 @@
 //! [from_slice]: https://docs.serde.rs/serde_json/de/fn.from_slice.html
 //! [from_reader]: https://docs.serde.rs/serde_json/de/fn.from_reader.html
 
-use crate::lib::*;
+use crate::{lib::*, ByteString};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use serde_json::error::Error;
@@ -142,7 +142,7 @@ pub enum Value {
     /// #
     /// let v = json!("a string");
     /// ```
-    String(String),
+    String(ByteString),
 
     /// Represents a JSON array.
     ///
@@ -175,7 +175,7 @@ impl Debug for Value {
             Value::Null => formatter.debug_tuple("Null").finish(),
             Value::Bool(v) => formatter.debug_tuple("Bool").field(&v).finish(),
             Value::Number(ref v) => Debug::fmt(v, formatter),
-            Value::String(ref v) => formatter.debug_tuple("String").field(v).finish(),
+            Value::String(ref v) => formatter.debug_tuple("String").field(&v.as_str()).finish(),
             Value::Array(ref v) => {
                 formatter.write_str("Array(")?;
                 Debug::fmt(v, formatter)?;
@@ -488,7 +488,7 @@ impl Value {
     /// ```
     pub fn as_str(&self) -> Option<&str> {
         match *self {
-            Value::String(ref s) => Some(s),
+            Value::String(ref s) => Some(s.as_str()),
             _ => None,
         }
     }

@@ -60,7 +60,7 @@ impl<'de> Deserialize<'de> for Value {
             #[cfg(any(feature = "std", feature = "alloc"))]
             #[inline]
             fn visit_string<E>(self, value: String) -> Result<Value, E> {
-                Ok(Value::String(value))
+                Ok(Value::String(value.into()))
             }
 
             #[inline]
@@ -212,7 +212,7 @@ impl<'de> serde::Deserializer<'de> for Value {
             Value::Bool(v) => visitor.visit_bool(v),
             Value::Number(n) => n.deserialize_any(visitor),
             #[cfg(any(feature = "std", feature = "alloc"))]
-            Value::String(v) => visitor.visit_string(v),
+            Value::String(v) => visitor.visit_string(v.as_str().to_string()),
             Value::Array(v) => visit_array(v, visitor),
             Value::Object(v) => visit_object(v, visitor),
         }
@@ -276,7 +276,7 @@ impl<'de> serde::Deserializer<'de> for Value {
                 }
                 (variant, Some(value))
             }
-            Value::String(variant) => (variant, None),
+            Value::String(variant) => (variant.as_str().to_string(), None),
             other => {
                 return Err(serde::de::Error::invalid_type(
                     other.unexpected(),
@@ -340,7 +340,7 @@ impl<'de> serde::Deserializer<'de> for Value {
     {
         match self {
             #[cfg(any(feature = "std", feature = "alloc"))]
-            Value::String(v) => visitor.visit_string(v),
+            Value::String(v) => visitor.visit_string(v.as_str().to_string()),
             _ => Err(self.invalid_type(&visitor)),
         }
     }
@@ -358,7 +358,7 @@ impl<'de> serde::Deserializer<'de> for Value {
     {
         match self {
             #[cfg(any(feature = "std", feature = "alloc"))]
-            Value::String(v) => visitor.visit_string(v),
+            Value::String(v) => visitor.visit_string(v.as_str().to_string()),
             Value::Array(v) => visit_array(v, visitor),
             _ => Err(self.invalid_type(&visitor)),
         }
@@ -708,7 +708,7 @@ impl<'de> serde::Deserializer<'de> for &'de Value {
             Value::Null => visitor.visit_unit(),
             Value::Bool(v) => visitor.visit_bool(v),
             Value::Number(ref n) => n.deserialize_any(visitor),
-            Value::String(ref v) => visitor.visit_borrowed_str(v),
+            Value::String(ref v) => visitor.visit_borrowed_str(v.as_str()),
             Value::Array(ref v) => visit_array_ref(v, visitor),
             Value::Object(ref v) => visit_object_ref(v, visitor),
         }
@@ -768,9 +768,9 @@ impl<'de> serde::Deserializer<'de> for &'de Value {
                         &"map with a single key",
                     ));
                 }
-                (variant, Some(value))
+                (variant.as_str(), Some(value))
             }
-            Value::String(ref variant) => (variant, None),
+            Value::String(ref variant) => (variant.as_str(), None),
             ref other => {
                 return Err(serde::de::Error::invalid_type(
                     other.unexpected(),
@@ -826,7 +826,7 @@ impl<'de> serde::Deserializer<'de> for &'de Value {
         V: Visitor<'de>,
     {
         match *self {
-            Value::String(ref v) => visitor.visit_borrowed_str(v),
+            Value::String(ref v) => visitor.visit_borrowed_str(v.as_str()),
             _ => Err(self.invalid_type(&visitor)),
         }
     }
@@ -843,7 +843,7 @@ impl<'de> serde::Deserializer<'de> for &'de Value {
         V: Visitor<'de>,
     {
         match *self {
-            Value::String(ref v) => visitor.visit_borrowed_str(v),
+            Value::String(ref v) => visitor.visit_borrowed_str(v.as_str()),
             Value::Array(ref v) => visit_array_ref(v, visitor),
             _ => Err(self.invalid_type(&visitor)),
         }
@@ -1283,7 +1283,7 @@ impl Value {
                 }
             }
             //n.unexpected(),
-            Value::String(ref s) => Unexpected::Str(s),
+            Value::String(ref s) => Unexpected::Str(s.as_str()),
             Value::Array(_) => Unexpected::Seq,
             Value::Object(_) => Unexpected::Map,
         }

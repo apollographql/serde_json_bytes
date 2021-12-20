@@ -873,6 +873,7 @@ impl Default for Value {
     }
 }
 
+mod bytes;
 mod de;
 mod from;
 mod index;

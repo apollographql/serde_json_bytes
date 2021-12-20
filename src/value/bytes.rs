@@ -68,7 +68,23 @@ impl<'de> Visitor<'de> for BytesSeed {
     where
         E: serde::de::Error,
     {
+        Ok(Value::String(value.into()))
+    }
+
+    #[inline]
+    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
         Ok(Value::String(ByteString::new(&self.bytes, value)))
+    }
+
+    #[inline]
+    fn visit_string<E>(self, value: String) -> Result<Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Value::String(value.into()))
     }
 
     #[inline]

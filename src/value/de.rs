@@ -1,17 +1,17 @@
-use crate::error::Error;
 use crate::lib::str::FromStr;
 use crate::lib::*;
 use crate::map::Map;
-use crate::number::Number;
 use crate::value::Value;
 use serde::de::{
     self, Deserialize, DeserializeSeed, EnumAccess, Expected, IntoDeserializer, MapAccess,
     SeqAccess, Unexpected, VariantAccess, Visitor,
 };
 use serde::{forward_to_deserialize_any, serde_if_integer128};
+use serde_json::error::Error;
+use serde_json::Number;
 
 #[cfg(feature = "arbitrary_precision")]
-use crate::number::NumberFromString;
+use serde_json::NumberFromString;
 
 impl<'de> Deserialize<'de> for Value {
     #[inline]
@@ -133,7 +133,7 @@ impl<'de> Deserialize<'de> for Value {
 impl FromStr for Value {
     type Err = Error;
     fn from_str(s: &str) -> Result<Value, Error> {
-        super::super::de::from_str(s)
+        serde_json::from_str(s)
     }
 }
 
@@ -1271,7 +1271,18 @@ impl Value {
         match *self {
             Value::Null => Unexpected::Unit,
             Value::Bool(b) => Unexpected::Bool(b),
-            Value::Number(ref n) => n.unexpected(),
+            Value::Number(ref n) => {
+                if let Some(f) = n.as_f64() {
+                    Unexpected::Float(f)
+                } else if let Some(i) = n.as_i64() {
+                    Unexpected::Signed(i)
+                } else if let Some(u) = n.as_u64() {
+                    Unexpected::Unsigned(u)
+                } else {
+                    Unexpected::Other("Number")
+                }
+            }
+            //n.unexpected(),
             Value::String(ref s) => Unexpected::Str(s),
             Value::Array(_) => Unexpected::Seq,
             Value::Object(_) => Unexpected::Map,

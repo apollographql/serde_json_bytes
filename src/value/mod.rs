@@ -90,16 +90,15 @@
 //! [from_slice]: https://docs.serde.rs/serde_json/de/fn.from_slice.html
 //! [from_reader]: https://docs.serde.rs/serde_json/de/fn.from_reader.html
 
-use crate::error::Error;
-use crate::io;
 use crate::lib::*;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use serde_json::error::Error;
+use serde_json::Number;
 
 pub use self::index::Index;
 pub use self::ser::Serializer;
 pub use crate::map::Map;
-pub use crate::number::Number;
 
 #[cfg(feature = "raw_value")]
 pub use crate::raw::{to_raw_value, RawValue};
@@ -191,6 +190,7 @@ impl Debug for Value {
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Display for Value {
     /// Display a JSON value as a string.
     ///
@@ -221,8 +221,8 @@ impl fmt::Display for Value {
             inner: &'a mut fmt::Formatter<'b>,
         }
 
-        impl<'a, 'b> io::Write for WriterFormatter<'a, 'b> {
-            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        impl<'a, 'b> std::io::Write for WriterFormatter<'a, 'b> {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
                 // Safety: the serializer below only emits valid utf8 when using
                 // the default formatter.
                 let s = unsafe { str::from_utf8_unchecked(buf) };
@@ -230,25 +230,25 @@ impl fmt::Display for Value {
                 Ok(buf.len())
             }
 
-            fn flush(&mut self) -> io::Result<()> {
+            fn flush(&mut self) -> std::io::Result<()> {
                 Ok(())
             }
         }
 
-        fn io_error(_: fmt::Error) -> io::Error {
+        fn io_error(_: fmt::Error) -> std::io::Error {
             // Error value does not matter because Display impl just maps it
             // back to fmt::Error.
-            io::Error::new(io::ErrorKind::Other, "fmt error")
+            std::io::Error::new(std::io::ErrorKind::Other, "fmt error")
         }
 
         let alternate = f.alternate();
         let mut wr = WriterFormatter { inner: f };
         if alternate {
             // {:#}
-            super::ser::to_writer_pretty(&mut wr, self).map_err(|_| fmt::Error)
+            serde_json::to_writer_pretty(&mut wr, self).map_err(|_| fmt::Error)
         } else {
             // {}
-            super::ser::to_writer(&mut wr, self).map_err(|_| fmt::Error)
+            serde_json::to_writer(&mut wr, self).map_err(|_| fmt::Error)
         }
     }
 }
@@ -896,7 +896,7 @@ mod ser;
 ///     location: String,
 /// }
 ///
-/// fn compare_json_values() -> Result<(), Box<Error>> {
+/// fn compare_json_values() -> Result<(), Box<dyn Error>> {
 ///     let u = User {
 ///         fingerprint: "0xF9BA143B95FF6D82".to_owned(),
 ///         location: "Menlo Park, CA".to_owned(),

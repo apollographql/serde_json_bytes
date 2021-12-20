@@ -1,9 +1,10 @@
-use crate::error::{Error, ErrorCode, Result};
 use crate::lib::*;
 use crate::map::Map;
-use crate::number::Number;
 use crate::value::{to_value, Value};
+use serde::de::Unexpected;
 use serde::ser::{Impossible, Serialize};
+use serde_json::error::{Error, Result};
+use serde_json::Number;
 
 #[cfg(feature = "arbitrary_precision")]
 use serde::serde_if_integer128;
@@ -431,7 +432,9 @@ impl serde::ser::SerializeMap for SerializeMap {
 struct MapKeySerializer;
 
 fn key_must_be_a_string() -> Error {
-    Error::syntax(ErrorCode::KeyMustBeAString, 0, 0)
+    use serde::de::Error;
+    //Error::syntax(ErrorCode::KeyMustBeAString, 0, 0)
+    Error::invalid_type(Unexpected::Other("unknown"), &"String")
 }
 
 impl serde::Serializer for MapKeySerializer {

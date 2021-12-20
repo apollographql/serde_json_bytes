@@ -2,7 +2,7 @@ use super::Value;
 use crate::lib::iter::FromIterator;
 use crate::lib::*;
 use crate::map::Map;
-use crate::number::Number;
+use serde_json::Number;
 
 #[cfg(feature = "arbitrary_precision")]
 use serde::serde_if_integer128;

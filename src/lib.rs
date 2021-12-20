@@ -70,3 +70,7 @@ macro_rules! tri {
 mod bytestring;
 mod map;
 mod value;
+
+pub use bytestring::ByteString;
+pub use map::Map;
+pub use value::{from_value, to_value, Value};

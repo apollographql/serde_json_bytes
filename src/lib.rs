@@ -74,3 +74,18 @@ pub mod value;
 pub use bytestring::ByteString;
 pub use map::*;
 pub use value::{from_value, to_value, Value};
+
+impl From<serde_json::Value> for Value {
+    fn from(value: serde_json::Value) -> Self {
+        match value {
+            serde_json::Value::Null => Value::Null,
+            serde_json::Value::Bool(b) => Value::Bool(b),
+            serde_json::Value::Number(n) => Value::Number(n),
+            serde_json::Value::String(s) => Value::String(s.into()),
+            serde_json::Value::Array(v) => Value::Array(v.into_iter().map(Into::into).collect()),
+            serde_json::Value::Object(o) => {
+                Value::Object(o.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
+        }
+    }
+}

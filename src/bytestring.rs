@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt};
+use std::{borrow::Borrow, fmt, hash};
 
 use bytes::Bytes;
 use serde::{
@@ -53,6 +53,12 @@ impl Borrow<str> for ByteString {
 impl std::fmt::Debug for ByteString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+impl hash::Hash for ByteString {
+    fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
+        self.as_str().hash(hasher)
     }
 }
 

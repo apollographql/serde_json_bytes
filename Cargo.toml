@@ -3,6 +3,11 @@ name = "serde_json_bytes"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+authors = ["Geoffroy Couprie <geoffroy@apollographql.com>"]
+description = "a JSON Value object with strings backed by Bytes, parsed by serde_json"
+repository = "https://github.com/apollographql/serde_json_bytes"
+keywords = ["json", "parser", "bytes"]
+categories = ["parsing"]
 
 [dependencies]
 serde = { version = "1.0.100", default-features = false, features = ["derive"] }

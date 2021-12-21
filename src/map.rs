@@ -16,7 +16,6 @@ use serde::de;
 use indexmap::{self, IndexMap};
 
 /// Represents a JSON key/value type.
-#[derive(Hash)]
 pub struct Map<K, V> {
     map: MapImpl<K, V>,
 }
@@ -309,6 +308,15 @@ impl PartialEq for Map<ByteString, Value> {
 }
 
 impl Eq for Map<ByteString, Value> {}
+
+impl<K: Hash, V: Hash> Hash for Map<K, V> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.map.len().hash(state);
+        for elt in &self.map {
+            elt.hash(state);
+        }
+    }
+}
 
 /// Access an element of this map. Panics if the given key is not present in the
 /// map.

@@ -41,7 +41,7 @@ preserve_order = ["indexmap"]
 #
 # Unlike arbitrary_precision, this feature makes f64 -> JSON -> f64 produce
 # output identical to the input.
-float_roundtrip = []
+#float_roundtrip = []
 
 # Use an arbitrary precision number representation for serde_json::Number. This
 # allows JSON numbers of arbitrary size/precision to be read into a Number and
@@ -52,7 +52,7 @@ float_roundtrip = []
 arbitrary_precision = ["serde_json/arbitrary_precision"]
 
 # Provide a RawValue type that can hold unprocessed JSON during deserialization.
-raw_value = []
+#raw_value = []
 
 # Provide a method disable_recursion_limit to parse arbitrarily deep JSON
 # structures without any consideration for overflowing the stack. When using
@@ -62,4 +62,4 @@ raw_value = []
 # to be careful around other recursive operations on the parsed result which may
 # overflow the stack after deserialization has completed, including, but not
 # limited to, Display and Debug and Drop impls.
-unbounded_depth = []
+#unbounded_depth = []

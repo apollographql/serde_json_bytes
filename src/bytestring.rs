@@ -12,7 +12,7 @@ pub struct ByteString(Bytes);
 /// read only string backed by a `Bytes` buffer
 impl ByteString {
     /// will panic if `string` is not contained in `origin`
-    pub fn new(origin: &Bytes, string: &str) -> Self {
+    pub(crate) fn new(origin: &Bytes, string: &str) -> Self {
         ByteString(origin.slice_ref(string.as_bytes()))
     }
 

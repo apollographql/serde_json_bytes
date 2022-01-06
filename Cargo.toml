@@ -49,7 +49,7 @@ float_roundtrip = []
 #
 # Unlike float_roundtrip, this feature makes JSON -> serde_json::Number -> JSON
 # produce output identical to the input.
-arbitrary_precision = []
+arbitrary_precision = ["serde_json/arbitrary_precision"]
 
 # Provide a RawValue type that can hold unprocessed JSON during deserialization.
 raw_value = []

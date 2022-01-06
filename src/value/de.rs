@@ -11,7 +11,7 @@ use serde_json::error::Error;
 use serde_json::Number;
 
 #[cfg(feature = "arbitrary_precision")]
-use serde_json::NumberFromString;
+use crate::number::NumberFromString;
 
 impl<'de> Deserialize<'de> for Value {
     #[inline]

@@ -69,6 +69,7 @@ macro_rules! tri {
 
 mod bytestring;
 pub mod map;
+mod number;
 pub mod value;
 
 pub use bytestring::ByteString;

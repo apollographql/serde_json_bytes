@@ -685,7 +685,9 @@ struct NumberValueEmitter;
 
 #[cfg(feature = "arbitrary_precision")]
 fn invalid_number() -> Error {
-    Error::syntax(ErrorCode::InvalidNumber, 0, 0)
+    use serde::de::Error;
+    //Error::syntax(ErrorCode::InvalidNumber, 0, 0)
+    Error::invalid_value(Unexpected::Other("unknown"), &"Invalid number")
 }
 
 #[cfg(feature = "arbitrary_precision")]

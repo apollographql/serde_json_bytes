@@ -92,13 +92,13 @@ impl From<serde_json::Value> for Value {
     }
 }
 
-pub use serde_json::json;
+pub use serde_json;
 
 #[macro_export]
-macro_rules! bjson {
+macro_rules! json {
     ($($json:tt)+) => {
         {
-            let value: serde_json_bytes::Value = $crate::json!($($json)+).into();
+            let value: serde_json_bytes::Value = $crate::serde_json::json!($($json)+).into();
             value
         }
     };

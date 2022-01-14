@@ -2,15 +2,12 @@ use serde::de;
 use serde_json::Number;
 use std::fmt;
 
-#[cfg(feature = "arbitrary_precision")]
 pub(crate) const TOKEN: &str = "$serde_json::private::Number";
 
-#[cfg(feature = "arbitrary_precision")]
 pub struct NumberFromString {
     pub value: Number,
 }
 
-#[cfg(feature = "arbitrary_precision")]
 impl<'de> de::Deserialize<'de> for NumberFromString {
     fn deserialize<D>(deserializer: D) -> Result<NumberFromString, D::Error>
     where

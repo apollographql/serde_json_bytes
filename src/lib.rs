@@ -69,6 +69,7 @@ macro_rules! tri {
 
 mod bytestring;
 pub mod map;
+#[cfg(feature = "arbitrary_precision")]
 mod number;
 pub mod value;
 

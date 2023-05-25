@@ -13,13 +13,16 @@ impl Value {
     }
 }
 
+/// The [`DeserializeSeed`] implementation that returns [`Value`].
+///
+/// Can be used in `DeserializeSeed` implementations for types that contain `Value`.
 #[derive(Clone, Copy)]
-struct BytesSeed<'data> {
+pub struct BytesSeed<'data> {
     bytes: &'data Bytes,
 }
 
 impl<'data> BytesSeed<'data> {
-    fn new(bytes: &'data Bytes) -> Self {
+    pub fn new(bytes: &'data Bytes) -> Self {
         BytesSeed { bytes }
     }
 }
@@ -143,13 +146,16 @@ impl<'de, 'data> Visitor<'de> for BytesSeed<'data> {
     }
 }
 
+/// A [`DeserializeSeed`] implementation that returns [`ByteString`].
+///
+/// Can be used in `DeserializeSeed` implementations for types that contain `ByteString`.
 #[derive(Clone, Copy)]
-struct ByteStringSeed<'data> {
+pub struct ByteStringSeed<'data> {
     bytes: &'data Bytes,
 }
 
 impl<'data> ByteStringSeed<'data> {
-    fn new(bytes: &'data Bytes) -> Self {
+    pub fn new(bytes: &'data Bytes) -> Self {
         ByteStringSeed { bytes }
     }
 }

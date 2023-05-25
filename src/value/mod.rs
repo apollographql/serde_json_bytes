@@ -96,6 +96,7 @@ use serde::ser::Serialize;
 use serde_json::error::Error;
 use serde_json::Number;
 
+pub use self::bytes::{ByteStringSeed, BytesSeed};
 pub use self::index::Index;
 pub use self::ser::Serializer;
 pub use crate::map::Map;

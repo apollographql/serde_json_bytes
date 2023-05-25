@@ -1,6 +1,6 @@
 [package]
 name = "serde_json_bytes"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Geoffroy Couprie <geoffroy@apollographql.com>"]

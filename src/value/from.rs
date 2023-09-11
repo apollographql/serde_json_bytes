@@ -251,6 +251,15 @@ impl<K: Into<ByteString>, V: Into<Value>> FromIterator<(K, V)> for Value {
     }
 }
 
+impl<T: Into<Value>> From<Option<T>> for Value {
+    fn from(opt: Option<T>) -> Self {
+        match opt {
+            Some(value) => value.into(),
+            None => Value::Null,
+        }
+    }
+}
+
 impl From<()> for Value {
     /// Convert `()` to `Value`
     ///

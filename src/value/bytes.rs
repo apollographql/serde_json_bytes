@@ -11,6 +11,10 @@ impl Value {
         let mut de = serde_json::Deserializer::from_slice(&data);
         seed.deserialize(&mut de)
     }
+
+    pub fn to_bytes(&self) -> Bytes {
+        self.to_string().into()
+    }
 }
 
 /// The [`DeserializeSeed`] implementation that returns [`Value`].

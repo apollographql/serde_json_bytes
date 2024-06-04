@@ -76,6 +76,7 @@ pub mod value;
 pub use bytestring::ByteString;
 pub use map::*;
 pub use value::{from_value, to_value, Value};
+mod path;
 
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {

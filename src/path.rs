@@ -430,7 +430,261 @@ mod tests {
         test(
             template_json(),
             "$.store.book[*].author",
-            vec![js1, js2, js3, js4],
+            jp_v![
+                &js1;"$.['store'].['book'][0].['author']",
+                &js2;"$.['store'].['book'][1].['author']",
+                &js3;"$.['store'].['book'][2].['author']",
+                &js4;"$.['store'].['book'][3].['author']",],
+        );
+    }
+
+    /*#[test]
+    fn descendent_wildcard_test() {
+        let js1 = json!("Moby Dick");
+        let js2 = json!("The Lord of the Rings");
+        test(
+            template_json(),
+            "$..*.[?(@.isbn)].title",
+            jp_v![
+                &js1;"$.['store'].['book'][2].['title']",
+                &js2;"$.['store'].['book'][3].['title']",
+                &js1;"$.['store'].['book'][2].['title']",
+                &js2;"$.['store'].['book'][3].['title']"],
+        );
+    }
+
+    #[test]
+    fn field_test() {
+        let value = json!({"active":1});
+        test(
+            r#"{"field":{"field":[{"active":1},{"passive":1}]}}"#,
+            "$.field.field[?(@.active)]",
+            jp_v![&value;"$.['field'].['field'][0]",],
+        );
+    }*/
+
+    #[test]
+    fn index_index_test() {
+        let value = json!("0-553-21311-3");
+        test(
+            template_json(),
+            "$..book[2].isbn",
+            jp_v![&value;"$.['store'].['book'][2].['isbn']",],
+        );
+    }
+
+    #[test]
+    fn index_unit_index_test() {
+        let value = json!("0-553-21311-3");
+        test(
+            template_json(),
+            "$..book[2,4].isbn",
+            jp_v![&value;"$.['store'].['book'][2].['isbn']",],
+        );
+        let value1 = json!("0-395-19395-8");
+        test(
+            template_json(),
+            "$..book[2,3].isbn",
+            jp_v![&value;"$.['store'].['book'][2].['isbn']", &value1;"$.['store'].['book'][3].['isbn']",],
+        );
+    }
+
+    #[test]
+    fn index_unit_keys_test() {
+        let js1 = json!("Moby Dick");
+        let js2 = json!(8.99);
+        let js3 = json!("The Lord of the Rings");
+        let js4 = json!(22.99);
+        test(
+            template_json(),
+            "$..book[2,3]['title','price']",
+            jp_v![
+                &js1;"$.['store'].['book'][2].['title']",
+                &js2;"$.['store'].['book'][2].['price']",
+                &js3;"$.['store'].['book'][3].['title']",
+                &js4;"$.['store'].['book'][3].['price']",],
+        );
+    }
+
+    #[test]
+    fn index_slice_test() {
+        let i0 = "$.['array'][0]";
+        let i1 = "$.['array'][1]";
+        let i2 = "$.['array'][2]";
+        let i3 = "$.['array'][3]";
+        let i4 = "$.['array'][4]";
+        let i5 = "$.['array'][5]";
+        let i6 = "$.['array'][6]";
+        let i7 = "$.['array'][7]";
+        let i8 = "$.['array'][8]";
+        let i9 = "$.['array'][9]";
+
+        let j0 = json!(0);
+        let j1 = json!(1);
+        let j2 = json!(2);
+        let j3 = json!(3);
+        let j4 = json!(4);
+        let j5 = json!(5);
+        let j6 = json!(6);
+        let j7 = json!(7);
+        let j8 = json!(8);
+        let j9 = json!(9);
+        test(
+            template_json(),
+            "$.array[:]",
+            jp_v![
+                &j0;&i0,
+                &j1;&i1,
+                &j2;&i2,
+                &j3;&i3,
+                &j4;&i4,
+                &j5;&i5,
+                &j6;&i6,
+                &j7;&i7,
+                &j8;&i8,
+                &j9;&i9,],
+        );
+        test(template_json(), "$.array[1:4:2]", jp_v![&j1;&i1, &j3;&i3,]);
+        test(
+            template_json(),
+            "$.array[::3]",
+            jp_v![&j0;&i0, &j3;&i3, &j6;&i6, &j9;&i9,],
+        );
+        test(template_json(), "$.array[-1:]", jp_v![&j9;&i9,]);
+        test(template_json(), "$.array[-2:-1]", jp_v![&j8;&i8,]);
+    }
+
+    #[test]
+    fn index_filter_test() {
+        let moby = json!("Moby Dick");
+        let rings = json!("The Lord of the Rings");
+        test(
+            template_json(),
+            "$..book[?(@.isbn)].title",
+            jp_v![
+                &moby;"$.['store'].['book'][2].['title']",
+                &rings;"$.['store'].['book'][3].['title']",],
+        );
+        let sword = json!("Sword of Honour");
+        test(
+            template_json(),
+            "$..book[?(@.price != 8.95)].title",
+            jp_v![
+                &sword;"$.['store'].['book'][1].['title']",
+                &moby;"$.['store'].['book'][2].['title']",
+                &rings;"$.['store'].['book'][3].['title']",],
+        );
+        let sayings = json!("Sayings of the Century");
+        test(
+            template_json(),
+            "$..book[?(@.price == 8.95)].title",
+            jp_v![&sayings;"$.['store'].['book'][0].['title']",],
+        );
+        let js895 = json!(8.95);
+        test(
+            template_json(),
+            "$..book[?(@.author ~= '.*Rees')].price",
+            jp_v![&js895;"$.['store'].['book'][0].['price']",],
+        );
+        let js12 = json!(12.99);
+        let js899 = json!(8.99);
+        let js2299 = json!(22.99);
+        test(
+            template_json(),
+            "$..book[?(@.price >= 8.99)].price",
+            jp_v![
+                &js12;"$.['store'].['book'][1].['price']",
+                &js899;"$.['store'].['book'][2].['price']",
+                &js2299;"$.['store'].['book'][3].['price']",
+            ],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.price > 8.99)].price",
+            jp_v![
+                &js12;"$.['store'].['book'][1].['price']",
+                &js2299;"$.['store'].['book'][3].['price']",],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.price < 8.99)].price",
+            jp_v![&js895;"$.['store'].['book'][0].['price']",],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.price <= 8.99)].price",
+            jp_v![
+                &js895;"$.['store'].['book'][0].['price']",
+                &js899;"$.['store'].['book'][2].['price']",
+            ],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.price <= $.expensive)].price",
+            jp_v![
+                &js895;"$.['store'].['book'][0].['price']",
+                &js899;"$.['store'].['book'][2].['price']",
+            ],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.price >= $.expensive)].price",
+            jp_v![
+                &js12;"$.['store'].['book'][1].['price']",
+                &js2299;"$.['store'].['book'][3].['price']",
+            ],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.title in ['Moby Dick','Shmoby Dick','Big Dick','Dicks'])].price",
+            jp_v![&js899;"$.['store'].['book'][2].['price']",],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.title nin ['Moby Dick','Shmoby Dick','Big Dick','Dicks'])].title",
+            jp_v![
+                &sayings;"$.['store'].['book'][0].['title']",
+                &sword;"$.['store'].['book'][1].['title']",
+                &rings;"$.['store'].['book'][3].['title']",],
+        );
+        test(
+            template_json(),
+            "$..book[?(@.author size 10)].title",
+            jp_v![&sayings;"$.['store'].['book'][0].['title']",],
+        );
+        let filled_true = json!(1);
+        test(
+            template_json(),
+            "$.orders[?(@.filled == true)].id",
+            jp_v![&filled_true;"$.['orders'][0].['id']",],
+        );
+        let filled_null = json!(3);
+        test(
+            template_json(),
+            "$.orders[?(@.filled == null)].id",
+            jp_v![&filled_null;"$.['orders'][2].['id']",],
+        );
+    }
+
+    #[test]
+    fn index_filter_sets_test() {
+        let j1 = json!(1);
+        test(
+            template_json(),
+            "$.orders[?(@.ref subsetOf [1,2,3,4])].id",
+            jp_v![&j1;"$.['orders'][0].['id']",],
+        );
+        let j2 = json!(2);
+        test(
+            template_json(),
+            "$.orders[?(@.ref anyOf [1,4])].id",
+            jp_v![&j1;"$.['orders'][0].['id']", &j2;"$.['orders'][1].['id']",],
+        );
+        let j3 = json!(3);
+        test(
+            template_json(),
+            "$.orders[?(@.ref noneOf [3,6])].id",
+            jp_v![&j3;"$.['orders'][2].['id']",],
         );
     }
 }

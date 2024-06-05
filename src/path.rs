@@ -273,7 +273,11 @@ fn select_index<'value, 'path: 'value>(
         JsonPathIndex::Filter(filter) => match value {
             Value::Array(a) => Box::new(a.into_iter().enumerate().filter_map(move |(index, v)| {
                 if select_filter(filter, v) {
-                    Some((index_path(&selected_path, index), Cow::Borrowed(value)))
+                    println!(
+                        "TRUE => returning at path {selected_path:?}[{index}]: {}",
+                        serde_json::to_string(&v).unwrap()
+                    );
+                    Some((index_path(&selected_path, index), Cow::Borrowed(v)))
                 } else {
                     None
                 }

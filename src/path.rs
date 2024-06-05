@@ -188,19 +188,12 @@ fn select_index<'value, 'path: 'value>(
                 )
             }
         },
-        JsonPathIndex::Filter(filter) => todo!(),
+        JsonPathIndex::Filter(_filter) => todo!(),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    /*use crate::JsonPathQuery;
-    use crate::JsonPathValue::{NoValue, Slice};
-    use crate::{jp_v, JsonPathFinder, JsonPathInst, JsonPathValue};
-    */
-    //use serde_json::{json, Value};
-    use std::ops::Deref;
-    use std::str::FromStr;
 
     use crate::{json, Value};
 

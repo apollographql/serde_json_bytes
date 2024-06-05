@@ -9,6 +9,7 @@ use jsonpath_rust::parser::{
     model::{FilterExpression, FilterSign, Function, JsonPath, JsonPathIndex, Operand},
     parser::parse_json_path,
 };
+use regex::Regex;
 
 use crate::Value;
 
@@ -315,7 +316,7 @@ fn select_filter<'value, 'path: 'value>(
                 FilterSign::Greater => less(&right, &left),
                 FilterSign::LeOrEq => less(&left, &right) || (left == right),
                 FilterSign::GrOrEq => less(&right, &left) || (left == right),
-                FilterSign::Regex => todo!(),
+                FilterSign::Regex => regex(&left, &right),
                 FilterSign::In => inside(&left, &right),
                 FilterSign::Nin => !inside(&left, &right),
                 FilterSign::Size => todo!(),
@@ -374,6 +375,28 @@ pub fn inside<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Va
                 for r in elems.values() {
                     if el.eq(r) {
                         return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+pub fn regex<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if left.is_empty() || right.is_empty() {
+        return false;
+    }
+
+    match right.get(0).map(|v| v.as_ref()) {
+        Some(Value::String(str)) => {
+            if let Ok(regex) = Regex::new(str.as_str()) {
+                for el in left.iter() {
+                    if let Some(v) = el.as_str() {
+                        if regex.is_match(v) {
+                            return true;
+                        }
                     }
                 }
             }

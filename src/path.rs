@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     iter::{empty, once},
+    str::FromStr,
 };
 
 use jsonpath_rust::parser::{
@@ -11,13 +12,14 @@ use jsonpath_rust::parser::{
 
 use crate::Value;
 
-pub struct PathSelector {
+#[derive(Clone)]
+pub struct JsonPathInst {
     path: JsonPath,
 }
 
-impl PathSelector {
+impl JsonPathInst {
     pub fn new(path: &str) -> Result<Self, JsonPathParserError> {
-        Ok(PathSelector {
+        Ok(JsonPathInst {
             path: parse_json_path(path)?,
         })
     }
@@ -35,6 +37,30 @@ impl PathSelector {
     ) -> impl Iterator<Item = (String, Cow<'value, Value>)> + 'value {
         select(&self.path, value, Some(String::new()))
             .map(|(opt_path, value)| (opt_path.unwrap(), value))
+    }
+
+    pub fn find<'path: 'value, 'value>(&'path self, value: &'value Value) -> Value {
+        let mut v: Vec<_> = select(&self.path, value, None)
+            .map(|(_, value)| value.into_owned())
+            .collect();
+        if v.len() == 0 {
+            Value::Null
+        } else if v.len() == 1 {
+            v.pop()
+                .expect("already checked the array had a length of 1; qed")
+        } else {
+            Value::Array(v)
+        }
+    }
+}
+
+impl FromStr for JsonPathInst {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(JsonPathInst {
+            path: s.try_into()?,
+        })
     }
 }
 
@@ -250,12 +276,12 @@ mod tests {
 
     use crate::{json, Value};
 
-    use super::PathSelector;
+    use super::JsonPathInst;
 
     #[track_caller]
     fn test(json: &str, path: &str, expected: Vec<(String, Value)>) {
         let value: Value = serde_json::from_str(json).unwrap();
-        let selector = PathSelector::new(path).unwrap();
+        let selector = JsonPathInst::new(path).unwrap();
         let selected = selector
             .select_paths_and_values(&value)
             .map(|(path, v)| (path, v.into_owned()))

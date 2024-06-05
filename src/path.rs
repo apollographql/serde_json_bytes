@@ -84,7 +84,7 @@ fn select<'value, 'path: 'value>(
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
     println!(
-        "->select {:?} from {}",
+        "->{selected_path:?} SELECTING {:?} from {}",
         path,
         serde_json::to_string(value).unwrap()
     );
@@ -258,15 +258,50 @@ fn select_index<'value, 'path: 'value>(
             None => Box::new(empty()),
             Some(a) => {
                 let mut index = None;
+                let len = a.len();
+                let start = if *start >= 0 {
+                    let start = *start as usize;
+                    if start > len {
+                        return Box::new(empty());
+                    } else {
+                        start
+                    }
+                } else {
+                    let start = -*start as usize;
+                    if start > len {
+                        return Box::new(empty());
+                    } else {
+                        len - start
+                    }
+                };
+
+                let end = if *end == 0 {
+                    len
+                } else if *end > 0 {
+                    let end = *end as usize;
+                    if end > len {
+                        return Box::new(empty());
+                    } else {
+                        end
+                    }
+                } else {
+                    let end = -*end as usize;
+                    if end > len {
+                        return Box::new(empty());
+                    } else {
+                        len - end
+                    }
+                };
+
                 Box::new(
                     std::iter::from_fn(move || {
                         let new_index = match index.take() {
-                            None => *start as usize,
+                            None => start,
 
                             Some(i) => i + step,
                         };
 
-                        if new_index >= a.len() || new_index > *end as usize {
+                        if new_index >= a.len() || new_index > end {
                             None
                         } else {
                             index = Some(new_index);

@@ -19,6 +19,25 @@ impl Value {
     }
 }
 
+pub struct PathSelector {
+    path: JsonPath,
+}
+
+impl PathSelector {
+    pub fn new(path: &str) -> Result<Self, JsonPathParserError> {
+        Ok(PathSelector {
+            path: parse_json_path(path)?,
+        })
+    }
+
+    pub fn select<'path: 'value, 'value>(
+        &'path self,
+        value: &'value Value,
+    ) -> Box<dyn Iterator<Item = Cow<'value, Value>> + 'value> {
+        select(&self.path, value)
+    }
+}
+
 fn select<'value, 'path: 'value>(
     path: &'path JsonPath,
     value: &'value Value,

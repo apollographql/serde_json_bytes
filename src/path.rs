@@ -338,10 +338,10 @@ fn select_filter<'value, 'path: 'value>(
                 FilterSign::Regex => regex(&left, &right),
                 FilterSign::In => inside(&left, &right),
                 FilterSign::Nin => !inside(&left, &right),
-                FilterSign::Size => todo!(),
-                FilterSign::NoneOf => todo!(),
-                FilterSign::AnyOf => todo!(),
-                FilterSign::SubSetOf => todo!(),
+                FilterSign::Size => size(&left, &right),
+                FilterSign::NoneOf => !any_of(&left, &right),
+                FilterSign::AnyOf => any_of(&left, &right),
+                FilterSign::SubSetOf => sub_set_of(&left, &right),
                 FilterSign::Exists => !left.is_empty(),
             }
         }
@@ -411,6 +411,93 @@ pub fn inside<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Va
         }
         _ => false,
     }
+}
+
+/// compare sizes of json elements
+/// The method expects to get a number on the right side and array or string or object on the left
+/// where the number of characters, elements or fields will be compared respectively.
+pub fn size<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if let Some(Value::Number(n)) = right.get(0).map(|v| v.as_ref()) {
+        if let Some(sz) = n.as_f64() {
+            for el in left.iter().map(|v| v.as_ref()) {
+                match el {
+                    Value::String(v) if v.as_str().len() == sz as usize => true,
+                    Value::Array(elems) if elems.len() == sz as usize => true,
+                    Value::Object(fields) if fields.len() == sz as usize => true,
+                    _ => return false,
+                };
+            }
+            return true;
+        }
+    }
+    false
+}
+
+pub fn sub_set_of<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if left.is_empty() {
+        return true;
+    }
+    if right.is_empty() {
+        return false;
+    }
+
+    if let Some(elems) = left.first().and_then(|e| e.as_array()) {
+        if let Some(Value::Array(right_elems)) = right.get(0).map(|v| v.as_ref()) {
+            if right_elems.is_empty() {
+                return false;
+            }
+
+            for el in elems {
+                let mut res = false;
+
+                for r in right_elems.iter() {
+                    if el.eq(r) {
+                        res = true
+                    }
+                }
+                if !res {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+    false
+}
+
+pub fn any_of<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if left.is_empty() {
+        return true;
+    }
+    if right.is_empty() {
+        return false;
+    }
+
+    if let Some(Value::Array(elems)) = right.get(0).map(|v| v.as_ref()) {
+        if elems.is_empty() {
+            return false;
+        }
+
+        for el in left.iter().map(|v| v.as_ref()) {
+            if let Some(left_elems) = el.as_array() {
+                for l in left_elems.iter() {
+                    for r in elems.iter() {
+                        if l.eq(r) {
+                            return true;
+                        }
+                    }
+                }
+            } else {
+                for r in elems.iter() {
+                    if el.eq(r) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
 
 pub fn regex<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {

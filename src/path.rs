@@ -42,7 +42,12 @@ fn select<'value, 'path: 'value>(
     path: &'path JsonPath,
     value: &'value Value,
 ) -> Box<dyn Iterator<Item = Cow<'value, Value>> + 'value> {
-    match path {
+    println!(
+        "->select {:?} from {}",
+        path,
+        serde_json::to_string(value).unwrap()
+    );
+    let res: Box<dyn Iterator<Item = Cow<'value, Value>> + 'value> = match path {
         JsonPath::Root => Box::new(once(Cow::Borrowed(value))),
         JsonPath::Empty => Box::new(once(Cow::Borrowed(value))),
         JsonPath::Field(f) => match value {
@@ -94,15 +99,21 @@ fn select<'value, 'path: 'value>(
                 Box::new(empty())
             }
         }
-    }
+    };
+
+    Box::new(res.map(|v| {
+        println!("<-selected: {}", serde_json::to_string(&v).unwrap());
+        v
+    })) as Box<dyn Iterator<Item = Cow<'value, Value>> + 'value>
 }
 
 fn select_chain<'value, 'path: 'value>(
     paths: &'path [JsonPath],
     value: &'value Value,
 ) -> Box<dyn Iterator<Item = Cow<'value, Value>> + 'value> {
+    println!(" -> select_chain: {paths:?}");
     match paths.get(0) {
-        None => Box::new(empty()),
+        None => Box::new(once(Cow::Borrowed(value))),
         Some(p) => Box::new(select(p, value).flat_map(move |v| {
             match v {
                 Cow::Borrowed(v) => select_chain(&paths[1..], v),
@@ -178,5 +189,147 @@ fn select_index<'value, 'path: 'value>(
             }
         },
         JsonPathIndex::Filter(filter) => todo!(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /*use crate::JsonPathQuery;
+    use crate::JsonPathValue::{NoValue, Slice};
+    use crate::{jp_v, JsonPathFinder, JsonPathInst, JsonPathValue};
+    */
+    //use serde_json::{json, Value};
+    use std::ops::Deref;
+    use std::str::FromStr;
+
+    use crate::{json, Value};
+
+    use super::PathSelector;
+
+    #[track_caller]
+    fn test(json: &str, path: &str, expected: Vec<Value>) {
+        let value: Value = serde_json::from_str(json).unwrap();
+        let selector = PathSelector::new(path).unwrap();
+        let selected = selector
+            .select(&value)
+            .map(|v| {
+                println!("got: {v:?})");
+                v.into_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(selected, expected);
+    }
+
+    fn template_json<'a>() -> &'a str {
+        r#" {"store": { "book": [
+             {
+                 "category": "reference",
+                 "author": "Nigel Rees",
+                 "title": "Sayings of the Century",
+                 "price": 8.95
+             },
+             {
+                 "category": "fiction",
+                 "author": "Evelyn Waugh",
+                 "title": "Sword of Honour",
+                 "price": 12.99
+             },
+             {
+                 "category": "fiction",
+                 "author": "Herman Melville",
+                 "title": "Moby Dick",
+                 "isbn": "0-553-21311-3",
+                 "price": 8.99
+             },
+             {
+                 "category": "fiction",
+                 "author": "J. R. R. Tolkien",
+                 "title": "The Lord of the Rings",
+                 "isbn": "0-395-19395-8",
+                 "price": 22.99
+             }
+         ],
+         "bicycle": {
+             "color": "red",
+             "price": 19.95
+         }
+     },
+     "array":[0,1,2,3,4,5,6,7,8,9],
+     "orders":[
+         {
+             "ref":[1,2,3],
+             "id":1,
+             "filled": true
+         },
+         {
+             "ref":[4,5,6],
+             "id":2,
+             "filled": false
+         },
+         {
+             "ref":[7,8,9],
+             "id":3,
+             "filled": null
+         }
+      ],
+     "expensive": 10 }"#
+    }
+
+    #[test]
+    fn simple_test() {
+        let j1 = json!(2);
+        test("[1,2,3]", "$[1]", vec![j1]);
+    }
+
+    #[test]
+    fn root_test() {
+        let js = serde_json::from_str(template_json()).unwrap();
+        test(template_json(), "$", vec![js]);
+    }
+
+    #[test]
+    fn descent_test() {
+        let v1 = json!("reference");
+        let v2 = json!("fiction");
+        test(
+            template_json(),
+            "$..category",
+            vec![v1, v2.clone(), v2.clone(), v2],
+        );
+        let js1 = json!(19.95);
+        let js2 = json!(8.95);
+        let js3 = json!(12.99);
+        let js4 = json!(8.99);
+        let js5 = json!(22.99);
+        test(
+            template_json(),
+            "$.store..price",
+            vec![js1, js2, js3, js4, js5],
+        );
+        let js1 = json!("Nigel Rees");
+        let js2 = json!("Evelyn Waugh");
+        let js3 = json!("Herman Melville");
+        let js4 = json!("J. R. R. Tolkien");
+        test(template_json(), "$..author", vec![js1, js2, js3, js4]);
+    }
+
+    #[test]
+    fn wildcard_test() {
+        let js1 = json!("reference");
+        let js2 = json!("fiction");
+        test(
+            template_json(),
+            "$..book.[*].category",
+            vec![js1, js2.clone(), js2.clone(), js2.clone()],
+        );
+        let js1 = json!("Nigel Rees");
+        let js2 = json!("Evelyn Waugh");
+        let js3 = json!("Herman Melville");
+        let js4 = json!("J. R. R. Tolkien");
+        test(
+            template_json(),
+            "$.store.book[*].author",
+            vec![js1, js2, js3, js4],
+        );
     }
 }

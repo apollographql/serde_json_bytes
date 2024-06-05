@@ -159,7 +159,10 @@ fn select<'value, 'path: 'value>(
             _ => Box::new(empty()),
         },
         JsonPath::Index(index) => select_index(index, value, selected_path),
-        JsonPath::Current(_) => todo!(),
+        JsonPath::Current(current) => match current.as_ref() {
+            JsonPath::Empty => Box::new(once((root_path(&selected_path), Cow::Borrowed(value)))),
+            path => select(path, value, selected_path),
+        },
 
         JsonPath::Fn(Function::Length) => {
             if let Value::Array(a) = value {

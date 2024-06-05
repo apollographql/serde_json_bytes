@@ -6,7 +6,7 @@ use std::{
 
 use jsonpath_rust::parser::{
     errors::JsonPathParserError,
-    model::{Function, JsonPath, JsonPathIndex},
+    model::{FilterExpression, FilterSign, Function, JsonPath, JsonPathIndex, Operand},
     parser::parse_json_path,
 };
 
@@ -270,7 +270,112 @@ fn select_index<'value, 'path: 'value>(
                 )
             }
         },
-        JsonPathIndex::Filter(_filter) => todo!(),
+        JsonPathIndex::Filter(filter) => match value {
+            Value::Array(a) => Box::new(a.into_iter().enumerate().filter_map(move |(index, v)| {
+                if select_filter(filter, v) {
+                    Some((index_path(&selected_path, index), Cow::Borrowed(value)))
+                } else {
+                    None
+                }
+            })),
+            value => {
+                if select_filter(filter, value) {
+                    Box::new(once((selected_path, Cow::Borrowed(value))))
+                } else {
+                    Box::new(empty())
+                }
+            }
+        },
+    }
+}
+
+fn select_filter<'value, 'path: 'value>(
+    filter: &'path FilterExpression,
+    value: &'value Value,
+) -> bool {
+    match filter {
+        FilterExpression::And(left, right) => {
+            select_filter(left, value) && select_filter(right, value)
+        }
+        FilterExpression::Or(left, right) => {
+            select_filter(left, value) || select_filter(right, value)
+        }
+        FilterExpression::Not(expr) => !select_filter(expr, value),
+        FilterExpression::Atom(left, op, right) => {
+            let left = select_operand(left, value);
+            let right = select_operand(right, value);
+            match op {
+                FilterSign::Equal => left == right,
+                FilterSign::Unequal => left != right,
+                FilterSign::Less => less(&left, &right),
+                FilterSign::Greater => less(&right, &left),
+                FilterSign::LeOrEq => less(&left, &right) || (left == right),
+                FilterSign::GrOrEq => less(&right, &left) || (left == right),
+                FilterSign::Regex => todo!(),
+                FilterSign::In => inside(&left, &right),
+                FilterSign::Nin => !inside(&left, &right),
+                FilterSign::Size => todo!(),
+                FilterSign::NoneOf => todo!(),
+                FilterSign::AnyOf => todo!(),
+                FilterSign::SubSetOf => todo!(),
+                FilterSign::Exists => !left.is_empty(),
+            }
+        }
+    }
+}
+
+fn select_operand<'value, 'path: 'value>(
+    operand: &'path Operand,
+    value: &'value Value,
+) -> Vec<Cow<'value, Value>> {
+    match operand {
+        Operand::Static(s) => vec![Cow::Owned(s.to_owned().into())],
+        Operand::Dynamic(path) => select(path, value, None).map(|t| t.1).collect(),
+    }
+}
+
+pub fn less<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if left.len() == 1 && right.len() == 1 {
+        match (
+            left.get(0).map(|v| v.as_ref()),
+            right.get(0).map(|v| v.as_ref()),
+        ) {
+            (Some(Value::Number(l)), Some(Value::Number(r))) => l
+                .as_f64()
+                .and_then(|v1| r.as_f64().map(|v2| v1 < v2))
+                .unwrap_or(false),
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+
+pub fn inside<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
+    if left.is_empty() {
+        return false;
+    }
+
+    match right.get(0).map(|v| v.as_ref()) {
+        Some(Value::Array(elems)) => {
+            for el in left.iter() {
+                if elems.contains(el) {
+                    return true;
+                }
+            }
+            false
+        }
+        Some(Value::Object(elems)) => {
+            for el in left.iter().map(|v| v.as_ref()) {
+                for r in elems.values() {
+                    if el.eq(r) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
     }
 }
 
@@ -467,7 +572,7 @@ mod tests {
         );
     }
 
-    /*#[test]
+    #[test]
     fn descendent_wildcard_test() {
         let js1 = json!("Moby Dick");
         let js2 = json!("The Lord of the Rings");
@@ -490,7 +595,7 @@ mod tests {
             "$.field.field[?(@.active)]",
             jp_v![&value;"$.['field'].['field'][0]",],
         );
-    }*/
+    }
 
     #[test]
     fn index_index_test() {

@@ -29,19 +29,19 @@ impl JsonPathInst {
         &'path self,
         value: &'value Value,
     ) -> impl Iterator<Item = Cow<'value, Value>> + 'value {
-        select(&self.path, value, None).map(|(_, value)| value)
+        select(&self.path, value, value, None).map(|(_, value)| value)
     }
 
     pub fn select_paths_and_values<'path: 'value, 'value>(
         &'path self,
         value: &'value Value,
     ) -> impl Iterator<Item = (String, Cow<'value, Value>)> + 'value {
-        select(&self.path, value, Some(String::new()))
+        select(&self.path, value, value, Some(String::new()))
             .map(|(opt_path, value)| (opt_path.unwrap(), value))
     }
 
     pub fn find<'path: 'value, 'value>(&'path self, value: &'value Value) -> Value {
-        let mut v: Vec<_> = select(&self.path, value, None)
+        let mut v: Vec<_> = select(&self.path, value, value, None)
             .map(|(_, value)| value.into_owned())
             .collect();
         if v.len() == 0 {
@@ -79,6 +79,7 @@ fn key_path(path: &Option<String>, key: &str) -> Option<String> {
 
 fn select<'value, 'path: 'value>(
     path: &'path JsonPath,
+    root: &'path Value,
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
@@ -88,7 +89,7 @@ fn select<'value, 'path: 'value>(
         serde_json::to_string(value).unwrap()
     );
     let res: Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> = match path {
-        JsonPath::Root => Box::new(once((root_path(&selected_path), Cow::Borrowed(value)))),
+        JsonPath::Root => Box::new(once((root_path(&selected_path), Cow::Borrowed(root)))),
         JsonPath::Empty => Box::new(once((selected_path, Cow::Borrowed(value)))),
         JsonPath::Field(f) => match value {
             Value::Object(o) => match o.get(f.as_str()) {
@@ -100,7 +101,7 @@ fn select<'value, 'path: 'value>(
             },
             _ => Box::new(empty()),
         },
-        JsonPath::Chain(chain) => Box::new(select_chain(&chain[..], value, selected_path)),
+        JsonPath::Chain(chain) => Box::new(select_chain(&chain[..], root, value, selected_path)),
         JsonPath::Wildcard => match value {
             Value::Object(o) => Box::new(o.into_iter().map(move |(key, value)| {
                 (key_path(&selected_path, key.as_str()), Cow::Borrowed(value))
@@ -111,21 +112,19 @@ fn select<'value, 'path: 'value>(
             _ => Box::new(empty()),
         },
         JsonPath::Descent(descent) => match value {
-            Value::Array(a) => Box::new(
-                a.into_iter()
-                    .enumerate()
-                    .flat_map(move |(index, v)| select(path, v, index_path(&selected_path, index))),
-            ),
+            Value::Array(a) => Box::new(a.into_iter().enumerate().flat_map(move |(index, v)| {
+                select(path, root, v, index_path(&selected_path, index))
+            })),
             Value::Object(o) => match o.get(descent.as_str()) {
                 Some(v) => Box::new(
                     once((key_path(&selected_path, descent.as_str()), Cow::Borrowed(v))).chain(
                         o.into_iter().flat_map(move |(key, v)| {
-                            select(path, v, key_path(&selected_path, key.as_str()))
+                            select(path, root, v, key_path(&selected_path, key.as_str()))
                         }),
                     ),
                 ),
                 None => Box::new(o.into_iter().flat_map(move |(key, v)| {
-                    select(path, v, key_path(&selected_path, key.as_str()))
+                    select(path, root, v, key_path(&selected_path, key.as_str()))
                 })),
             },
             _ => Box::new(empty()),
@@ -140,7 +139,7 @@ fn select<'value, 'path: 'value>(
                             (index_path(&selected_path, index), Cow::Borrowed(v))
                         })
                         .chain(a.into_iter().enumerate().flat_map(move |(index, v)| {
-                            select(path, v, index_path(&selected_path2, index))
+                            select(path, root, v, index_path(&selected_path2, index))
                         })),
                 )
             }
@@ -153,16 +152,21 @@ fn select<'value, 'path: 'value>(
                             (key_path(&selected_path, key.as_str()), Cow::Borrowed(v))
                         })
                         .chain(o.into_iter().flat_map(move |(key, v)| {
-                            select(path, v, key_path(&selected_path2, key.as_str()))
+                            select(path, root, v, key_path(&selected_path2, key.as_str()))
                         })),
                 )
             }
             _ => Box::new(empty()),
         },
-        JsonPath::Index(index) => select_index(index, value, selected_path),
+        JsonPath::Index(index) => {
+            Box::new(select_index(index, root, value, selected_path).map(|v| {
+                println!("select_index returning {v:?}");
+                v
+            }))
+        }
         JsonPath::Current(current) => match current.as_ref() {
             JsonPath::Empty => Box::new(once((root_path(&selected_path), Cow::Borrowed(value)))),
-            path => select(path, value, selected_path),
+            path => select(path, root, value, selected_path),
         },
 
         JsonPath::Fn(Function::Length) => {
@@ -178,26 +182,31 @@ fn select<'value, 'path: 'value>(
     };
 
     Box::new(res.map(|(path, v)| {
-        println!("<-selected:{path:?} {}", serde_json::to_string(&v).unwrap());
+        println!(
+            "<-selected:{path:?} => {}",
+            serde_json::to_string(&v).unwrap()
+        );
         (path, v)
     })) as Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value>
 }
 
 fn select_chain<'value, 'path: 'value>(
     paths: &'path [JsonPath],
+    root: &'path Value,
+
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
     println!(" -> select_chain: {paths:?}");
     match paths.get(0) {
         None => Box::new(once((selected_path, Cow::Borrowed(value)))),
-        Some(p) => Box::new(
-            select(p, value, selected_path).flat_map(move |(prefix_path, v)| {
+        Some(p) => Box::new(select(p, root, value, selected_path).flat_map(
+            move |(prefix_path, v)| {
                 match v {
-                    Cow::Borrowed(v) => select_chain(&paths[1..], v, prefix_path),
+                    Cow::Borrowed(v) => select_chain(&paths[1..], root, v, prefix_path),
                     Cow::Owned(v) => {
                         // here we need to select all values because we would get a different lifetime as a result
-                        let values = select_chain(&paths[1..], &v, prefix_path)
+                        let values = select_chain(&paths[1..], root, &v, prefix_path)
                             .map(|(path, v)| (path, Cow::Owned(v.into_owned())))
                             .collect::<Vec<_>>();
                         Box::new(values.into_iter())
@@ -206,13 +215,14 @@ fn select_chain<'value, 'path: 'value>(
                             >
                     }
                 }
-            }),
-        ),
+            },
+        )),
     }
 }
 
 fn select_index<'value, 'path: 'value>(
     index: &'path JsonPathIndex,
+    root: &'path Value,
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
@@ -273,20 +283,27 @@ fn select_index<'value, 'path: 'value>(
         },
         JsonPathIndex::Filter(filter) => match value {
             Value::Array(a) => Box::new(a.into_iter().enumerate().filter_map(move |(index, v)| {
-                if select_filter(filter, v) {
+                if select_filter(filter, root, v) {
                     println!(
                         "TRUE => returning at path {selected_path:?}[{index}]: {}",
                         serde_json::to_string(&v).unwrap()
                     );
                     Some((index_path(&selected_path, index), Cow::Borrowed(v)))
                 } else {
+                    println!("FALSE => returning none at path {selected_path:?}",);
                     None
                 }
             })),
             value => {
-                if select_filter(filter, value) {
+                if select_filter(filter, root, value) {
+                    println!(
+                        "TRUE => returning at path {selected_path:?}: {}",
+                        serde_json::to_string(&value).unwrap()
+                    );
+
                     Box::new(once((selected_path, Cow::Borrowed(value))))
                 } else {
+                    println!("FALSE => returning nothing at path {selected_path:?}",);
                     Box::new(empty())
                 }
             }
@@ -296,19 +313,21 @@ fn select_index<'value, 'path: 'value>(
 
 fn select_filter<'value, 'path: 'value>(
     filter: &'path FilterExpression,
+    root: &'path Value,
+
     value: &'value Value,
 ) -> bool {
-    match filter {
+    let res = match filter {
         FilterExpression::And(left, right) => {
-            select_filter(left, value) && select_filter(right, value)
+            select_filter(left, root, value) && select_filter(right, root, value)
         }
         FilterExpression::Or(left, right) => {
-            select_filter(left, value) || select_filter(right, value)
+            select_filter(left, root, value) || select_filter(right, root, value)
         }
-        FilterExpression::Not(expr) => !select_filter(expr, value),
+        FilterExpression::Not(expr) => !select_filter(expr, root, value),
         FilterExpression::Atom(left, op, right) => {
-            let left = select_operand(left, value);
-            let right = select_operand(right, value);
+            let left = select_operand(left, root, value);
+            let right = select_operand(right, root, value);
             match op {
                 FilterSign::Equal => left == right,
                 FilterSign::Unequal => left != right,
@@ -326,16 +345,26 @@ fn select_filter<'value, 'path: 'value>(
                 FilterSign::Exists => !left.is_empty(),
             }
         }
-    }
+    };
+
+    println!(
+        "filter {filter:?} on {} => {res}",
+        serde_json::to_string(&value).unwrap()
+    );
+
+    res
 }
 
 fn select_operand<'value, 'path: 'value>(
     operand: &'path Operand,
+    root: &'path Value,
+
     value: &'value Value,
 ) -> Vec<Cow<'value, Value>> {
+    println!("-operand-");
     match operand {
         Operand::Static(s) => vec![Cow::Owned(s.to_owned().into())],
-        Operand::Dynamic(path) => select(path, value, None).map(|t| t.1).collect(),
+        Operand::Dynamic(path) => select(path, root, value, None).map(|t| t.1).collect(),
     }
 }
 
@@ -421,6 +450,7 @@ mod tests {
             .select_paths_and_values(&value)
             .map(|(path, v)| (path, v.into_owned()))
             .collect::<Vec<_>>();
+        println!("Testing path {path}:");
         assert_eq!(selected, expected);
     }
 

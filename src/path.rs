@@ -83,12 +83,7 @@ fn select<'value, 'path: 'value>(
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
-    println!(
-        "->{selected_path:?} SELECTING {:?} from {}",
-        path,
-        serde_json::to_string(value).unwrap()
-    );
-    let res: Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> = match path {
+    match path {
         JsonPath::Root => Box::new(once((root_path(&selected_path), Cow::Borrowed(root)))),
         JsonPath::Empty => Box::new(once((selected_path, Cow::Borrowed(value)))),
         JsonPath::Field(f) => match value {
@@ -158,12 +153,7 @@ fn select<'value, 'path: 'value>(
             }
             _ => Box::new(empty()),
         },
-        JsonPath::Index(index) => {
-            Box::new(select_index(index, root, value, selected_path).map(|v| {
-                println!("select_index returning {v:?}");
-                v
-            }))
-        }
+        JsonPath::Index(index) => select_index(index, root, value, selected_path),
         JsonPath::Current(current) => match current.as_ref() {
             JsonPath::Empty => Box::new(once((root_path(&selected_path), Cow::Borrowed(value)))),
             path => select(path, root, value, selected_path),
@@ -179,15 +169,7 @@ fn select<'value, 'path: 'value>(
                 Box::new(empty())
             }
         }
-    };
-
-    Box::new(res.map(|(path, v)| {
-        println!(
-            "<-selected:{path:?} => {}",
-            serde_json::to_string(&v).unwrap()
-        );
-        (path, v)
-    })) as Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value>
+    }
 }
 
 fn select_chain<'value, 'path: 'value>(
@@ -197,7 +179,6 @@ fn select_chain<'value, 'path: 'value>(
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
-    println!(" -> select_chain: {paths:?}");
     match paths.get(0) {
         None => Box::new(once((selected_path, Cow::Borrowed(value)))),
         Some(p) => Box::new(select(p, root, value, selected_path).flat_map(
@@ -319,26 +300,15 @@ fn select_index<'value, 'path: 'value>(
         JsonPathIndex::Filter(filter) => match value {
             Value::Array(a) => Box::new(a.into_iter().enumerate().filter_map(move |(index, v)| {
                 if select_filter(filter, root, v) {
-                    println!(
-                        "TRUE => returning at path {selected_path:?}[{index}]: {}",
-                        serde_json::to_string(&v).unwrap()
-                    );
                     Some((index_path(&selected_path, index), Cow::Borrowed(v)))
                 } else {
-                    println!("FALSE => returning none at path {selected_path:?}",);
                     None
                 }
             })),
             value => {
                 if select_filter(filter, root, value) {
-                    println!(
-                        "TRUE => returning at path {selected_path:?}: {}",
-                        serde_json::to_string(&value).unwrap()
-                    );
-
                     Box::new(once((selected_path, Cow::Borrowed(value))))
                 } else {
-                    println!("FALSE => returning nothing at path {selected_path:?}",);
                     Box::new(empty())
                 }
             }
@@ -352,7 +322,7 @@ fn select_filter<'value, 'path: 'value>(
 
     value: &'value Value,
 ) -> bool {
-    let res = match filter {
+    match filter {
         FilterExpression::And(left, right) => {
             select_filter(left, root, value) && select_filter(right, root, value)
         }
@@ -380,14 +350,7 @@ fn select_filter<'value, 'path: 'value>(
                 FilterSign::Exists => !left.is_empty(),
             }
         }
-    };
-
-    println!(
-        "filter {filter:?} on {} => {res}",
-        serde_json::to_string(&value).unwrap()
-    );
-
-    res
+    }
 }
 
 fn select_operand<'value, 'path: 'value>(
@@ -396,7 +359,6 @@ fn select_operand<'value, 'path: 'value>(
 
     value: &'value Value,
 ) -> Vec<Cow<'value, Value>> {
-    println!("-operand-");
     match operand {
         Operand::Static(s) => vec![Cow::Owned(s.to_owned().into())],
         Operand::Dynamic(path) => select(path, root, value, None).map(|t| t.1).collect(),
@@ -572,7 +534,6 @@ mod tests {
             .select_paths_and_values(&value)
             .map(|(path, v)| (path, v.into_owned()))
             .collect::<Vec<_>>();
-        println!("Testing path {path}:");
         assert_eq!(selected, expected);
     }
 

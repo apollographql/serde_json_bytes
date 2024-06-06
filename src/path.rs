@@ -301,7 +301,7 @@ fn select_index<'value, 'path: 'value>(
                             Some(i) => i + step,
                         };
 
-                        if new_index >= a.len() || new_index > end {
+                        if new_index >= a.len() || new_index >= end {
                             None
                         } else {
                             index = Some(new_index);

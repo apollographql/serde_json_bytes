@@ -76,6 +76,7 @@ pub mod value;
 pub use bytestring::ByteString;
 pub use map::*;
 pub use value::{from_value, to_value, Value};
+pub mod path;
 
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
@@ -98,7 +99,7 @@ pub use serde_json;
 macro_rules! json {
     ($($json:tt)+) => {
         {
-            let value: serde_json_bytes::Value = $crate::serde_json::json!($($json)+).into();
+            let value: $crate::Value = $crate::serde_json::json!($($json)+).into();
             value
         }
     };

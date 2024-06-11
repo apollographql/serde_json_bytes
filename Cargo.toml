@@ -1,3 +1,4 @@
+workspace = { members = ["fuzz"] }
 [package]
 name = "serde_json_bytes"
 version = "0.2.2"

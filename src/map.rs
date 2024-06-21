@@ -32,6 +32,9 @@ impl Map<ByteString, Value> {
     #[inline]
     pub fn new() -> Self {
         Map {
+            #[cfg(not(feature = "preserve_order"))]
+            map: MapImpl::new(),
+            #[cfg(feature = "preserve_order")]
             map: MapImpl::with_capacity_and_hasher(0, Default::default()),
         }
     }
@@ -288,6 +291,9 @@ impl Default for Map<ByteString, Value> {
     #[inline]
     fn default() -> Self {
         Map {
+            #[cfg(not(feature = "preserve_order"))]
+            map: MapImpl::new(),
+            #[cfg(feature = "preserve_order")]
             map: MapImpl::with_capacity_and_hasher(0, Default::default()),
         }
     }

@@ -13,6 +13,8 @@ use crate::{lib::borrow::Borrow, ByteString};
 use serde::de;
 
 #[cfg(feature = "preserve_order")]
+use ahash::RandomState;
+#[cfg(feature = "preserve_order")]
 use indexmap::{self, IndexMap};
 
 /// Represents a JSON key/value type.
@@ -23,14 +25,14 @@ pub struct Map<K, V> {
 #[cfg(not(feature = "preserve_order"))]
 type MapImpl<K, V> = BTreeMap<K, V>;
 #[cfg(feature = "preserve_order")]
-type MapImpl<K, V> = IndexMap<K, V>;
+type MapImpl<K, V> = IndexMap<K, V, RandomState>;
 
 impl Map<ByteString, Value> {
     /// Makes a new empty Map.
     #[inline]
     pub fn new() -> Self {
         Map {
-            map: MapImpl::new(),
+            map: MapImpl::with_capacity_and_hasher(0, Default::default()),
         }
     }
 
@@ -45,7 +47,7 @@ impl Map<ByteString, Value> {
                 BTreeMap::new()
             },
             #[cfg(feature = "preserve_order")]
-            map: IndexMap::with_capacity(capacity),
+            map: IndexMap::with_capacity_and_hasher(capacity, Default::default()),
         }
     }
 
@@ -286,7 +288,7 @@ impl Default for Map<ByteString, Value> {
     #[inline]
     fn default() -> Self {
         Map {
-            map: MapImpl::new(),
+            map: MapImpl::with_capacity_and_hasher(0, Default::default()),
         }
     }
 }

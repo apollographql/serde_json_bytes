@@ -1011,3 +1011,20 @@ where
 {
     T::deserialize(value)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::json;
+
+    use super::*;
+
+    #[test]
+    fn test_sort_all_objects() {
+        let mut val = json!({"id1": true, "id2": false});
+        val.sort_all_objects();
+        let mut second_val = json!({"id2": false, "id1": true});
+        second_val.sort_all_objects();
+
+        assert_eq!(val.to_string(), second_val.to_string());
+    }
+}

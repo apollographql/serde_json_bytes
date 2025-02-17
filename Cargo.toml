@@ -1,7 +1,7 @@
 workspace = { members = ["fuzz"] }
 [package]
 name = "serde_json_bytes"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Geoffroy Couprie <geoffroy@apollographql.com>"]

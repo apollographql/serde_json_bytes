@@ -284,6 +284,12 @@ impl Map<ByteString, Value> {
     {
         self.map.retain(f);
     }
+
+    #[inline]
+    pub fn sort_keys(&mut self) {
+        #[cfg(feature = "preserve_order")]
+        self.map.sort_unstable_keys();
+    }
 }
 
 #[allow(clippy::derivable_impls)] // clippy bug: https://github.com/rust-lang/rust-clippy/issues/7655

@@ -844,7 +844,7 @@ impl Value {
     /// If serde_json's "preserve_order" feature is not enabled, this method
     /// does no work because all JSON maps are always kept in a sorted state.
     ///
-    /// If serde_json's "preserve_order" feature is enabled, this method
+    /// If serde_json_bytes's "preserve_order" feature is enabled, this method
     /// destroys the original source order or insertion order of the JSON
     /// objects in favor of an alphanumerical order that matches how a BTreeMap
     /// with the same contents would be ordered.

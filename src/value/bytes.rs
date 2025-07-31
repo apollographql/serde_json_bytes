@@ -26,7 +26,7 @@ pub struct BytesSeed<'data> {
 }
 
 impl<'data> BytesSeed<'data> {
-    pub fn new(bytes: &'data Bytes) -> Self {
+    pub const fn new(bytes: &'data Bytes) -> Self {
         BytesSeed { bytes }
     }
 }
@@ -82,7 +82,7 @@ impl<'de, 'data> Visitor<'de> for BytesSeed<'data> {
     where
         E: serde::de::Error,
     {
-        Ok(Value::String(ByteString::new(&self.bytes, value)))
+        Ok(Value::String(ByteString::new(self.bytes, value)))
     }
 
     #[inline]
@@ -118,10 +118,7 @@ impl<'de, 'data> Visitor<'de> for BytesSeed<'data> {
     {
         let mut vec = Vec::new();
 
-        while let Some(elem) = match visitor.next_element_seed(self.clone()) {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        } {
+        while let Some(elem) = visitor.next_element_seed(self)? {
             vec.push(elem);
         }
 
@@ -132,13 +129,13 @@ impl<'de, 'data> Visitor<'de> for BytesSeed<'data> {
     where
         V: MapAccess<'de>,
     {
-        match visitor.next_key_seed(ByteStringSeed::new(&self.bytes))? {
+        match visitor.next_key_seed(ByteStringSeed::new(self.bytes))? {
             Some(first_key) => {
                 let mut values = Map::new();
 
-                values.insert(first_key, tri!(visitor.next_value_seed(self.clone())));
+                values.insert(first_key, tri!(visitor.next_value_seed(self)));
                 while let Some((key, value)) =
-                    tri!(visitor.next_entry_seed(ByteStringSeed::new(&self.bytes), self.clone()))
+                    tri!(visitor.next_entry_seed(ByteStringSeed::new(self.bytes), self))
                 {
                     values.insert(key, value);
                 }
@@ -159,7 +156,7 @@ pub struct ByteStringSeed<'data> {
 }
 
 impl<'data> ByteStringSeed<'data> {
-    pub fn new(bytes: &'data Bytes) -> Self {
+    pub const fn new(bytes: &'data Bytes) -> Self {
         ByteStringSeed { bytes }
     }
 }
@@ -195,7 +192,7 @@ impl<'de, 'data> Visitor<'de> for ByteStringSeed<'data> {
     where
         E: serde::de::Error,
     {
-        Ok(ByteString::new(&self.bytes, value))
+        Ok(ByteString::new(self.bytes, value))
     }
 
     #[inline]

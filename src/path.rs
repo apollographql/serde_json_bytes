@@ -44,7 +44,7 @@ impl JsonPathInst {
         let mut v: Vec<_> = select(&self.path, value, value, None)
             .map(|(_, value)| value.into_owned())
             .collect();
-        if v.len() == 0 {
+        if v.is_empty() {
             Value::Null
         } else if v.len() == 1 {
             v.pop()
@@ -101,13 +101,13 @@ fn select<'value, 'path: 'value>(
             Value::Object(o) => Box::new(o.into_iter().map(move |(key, value)| {
                 (key_path(&selected_path, key.as_str()), Cow::Borrowed(value))
             })),
-            Value::Array(a) => Box::new(a.into_iter().enumerate().map(move |(index, value)| {
+            Value::Array(a) => Box::new(a.iter().enumerate().map(move |(index, value)| {
                 (index_path(&selected_path, index), Cow::Borrowed(value))
             })),
             _ => Box::new(empty()),
         },
         JsonPath::Descent(descent) => match value {
-            Value::Array(a) => Box::new(a.into_iter().enumerate().flat_map(move |(index, v)| {
+            Value::Array(a) => Box::new(a.iter().enumerate().flat_map(move |(index, v)| {
                 select(path, root, v, index_path(&selected_path, index))
             })),
             Value::Object(o) => match o.get(descent.as_str()) {
@@ -128,12 +128,12 @@ fn select<'value, 'path: 'value>(
             Value::Array(a) => {
                 let selected_path2 = selected_path.clone();
                 Box::new(
-                    a.into_iter()
+                    a.iter()
                         .enumerate()
                         .map(move |(index, v)| {
                             (index_path(&selected_path, index), Cow::Borrowed(v))
                         })
-                        .chain(a.into_iter().enumerate().flat_map(move |(index, v)| {
+                        .chain(a.iter().enumerate().flat_map(move |(index, v)| {
                             select(path, root, v, index_path(&selected_path2, index))
                         })),
                 )
@@ -179,7 +179,7 @@ fn select_chain<'value, 'path: 'value>(
     value: &'value Value,
     selected_path: Option<String>,
 ) -> Box<dyn Iterator<Item = (Option<String>, Cow<'value, Value>)> + 'value> {
-    match paths.get(0) {
+    match paths.first() {
         None => Box::new(once((selected_path, Cow::Borrowed(value)))),
         Some(p) => Box::new(select(p, root, value, selected_path).flat_map(
             move |(prefix_path, v)| {
@@ -218,17 +218,15 @@ fn select_index<'value, 'path: 'value>(
                     .map(move |v| (index_path(&selected_path, index), Cow::Borrowed(v))),
             )
         }
-        JsonPathIndex::UnionIndex(indexes) => {
-            Box::new(indexes.into_iter().flat_map(move |index| {
-                let index = index.as_u64().unwrap() as usize;
-                value
-                    .as_array()
-                    .and_then(|a| a.get(index))
-                    .map(|v| (index_path(&selected_path, index), Cow::Borrowed(v)))
-                    .into_iter()
-            }))
-        }
-        JsonPathIndex::UnionKeys(keys) => Box::new(keys.into_iter().flat_map(move |key| {
+        JsonPathIndex::UnionIndex(indexes) => Box::new(indexes.iter().flat_map(move |index| {
+            let index = index.as_u64().unwrap() as usize;
+            value
+                .as_array()
+                .and_then(|a| a.get(index))
+                .map(|v| (index_path(&selected_path, index), Cow::Borrowed(v)))
+                .into_iter()
+        })),
+        JsonPathIndex::UnionKeys(keys) => Box::new(keys.iter().flat_map(move |key| {
             value
                 .as_object()
                 .and_then(|o| o.get(key.as_str()))
@@ -276,11 +274,7 @@ fn select_index<'value, 'path: 'value>(
 
                 Box::new(
                     std::iter::from_fn(move || {
-                        let new_index = match index.take() {
-                            None => start,
-
-                            Some(i) => i + step,
-                        };
+                        let new_index = index.map_or(start, |i| i + step);
 
                         if new_index >= a.len() || new_index >= end {
                             None
@@ -290,7 +284,7 @@ fn select_index<'value, 'path: 'value>(
                         }
                     })
                     .flat_map(move |index| {
-                        a.get(index as usize)
+                        a.get(index)
                             .map(|v| (index_path(&selected_path, index), Cow::Borrowed(v)))
                             .into_iter()
                     }),
@@ -298,7 +292,7 @@ fn select_index<'value, 'path: 'value>(
             }
         },
         JsonPathIndex::Filter(filter) => match value {
-            Value::Array(a) => Box::new(a.into_iter().enumerate().filter_map(move |(index, v)| {
+            Value::Array(a) => Box::new(a.iter().enumerate().filter_map(move |(index, v)| {
                 if select_filter(filter, root, v) {
                     Some((index_path(&selected_path, index), Cow::Borrowed(v)))
                 } else {
@@ -368,8 +362,8 @@ fn select_operand<'value, 'path: 'value>(
 pub fn less<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
     if left.len() == 1 && right.len() == 1 {
         match (
-            left.get(0).map(|v| v.as_ref()),
-            right.get(0).map(|v| v.as_ref()),
+            left.first().map(|v| v.as_ref()),
+            right.first().map(|v| v.as_ref()),
         ) {
             (Some(Value::Number(l)), Some(Value::Number(r))) => l
                 .as_f64()
@@ -387,7 +381,7 @@ pub fn inside<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Va
         return false;
     }
 
-    match right.get(0).map(|v| v.as_ref()) {
+    match right.first().map(|v| v.as_ref()) {
         Some(Value::Array(elems)) => {
             for el in left.iter() {
                 if elems.contains(el) {
@@ -414,7 +408,7 @@ pub fn inside<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Va
 /// The method expects to get a number on the right side and array or string or object on the left
 /// where the number of characters, elements or fields will be compared respectively.
 pub fn size<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Value>>) -> bool {
-    if let Some(Value::Number(n)) = right.get(0).map(|v| v.as_ref()) {
+    if let Some(Value::Number(n)) = right.first().map(|v| v.as_ref()) {
         if let Some(sz) = n.as_f64() {
             for el in left.iter().map(|v| v.as_ref()) {
                 match el {
@@ -439,7 +433,7 @@ pub fn sub_set_of<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value
     }
 
     if let Some(elems) = left.first().and_then(|e| e.as_array()) {
-        if let Some(Value::Array(right_elems)) = right.get(0).map(|v| v.as_ref()) {
+        if let Some(Value::Array(right_elems)) = right.first().map(|v| v.as_ref()) {
             if right_elems.is_empty() {
                 return false;
             }
@@ -470,7 +464,7 @@ pub fn any_of<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Va
         return false;
     }
 
-    if let Some(Value::Array(elems)) = right.get(0).map(|v| v.as_ref()) {
+    if let Some(Value::Array(elems)) = right.first().map(|v| v.as_ref()) {
         if elems.is_empty() {
             return false;
         }
@@ -502,7 +496,7 @@ pub fn regex<'value>(left: &Vec<Cow<'value, Value>>, right: &Vec<Cow<'value, Val
         return false;
     }
 
-    match right.get(0).map(|v| v.as_ref()) {
+    match right.first().map(|v| v.as_ref()) {
         Some(Value::String(str)) => {
             if let Ok(regex) = Regex::new(str.as_str()) {
                 for el in left.iter() {
@@ -547,15 +541,13 @@ mod tests {
         ($s.to_string(), $v.clone())
      };
 
-    ($(&$v:expr;$s:expr),+ $(,)?) =>{
-        {
-        let mut res = Vec::new();
+    ($(&$v:expr;$s:expr),+ $(,)?) =>{{
+        vec![
         $(
-           res.push(jp_v!(&$v ; $s));
-        )+
-        res
-        }
-    };
+            jp_v!(&$v ; $s)
+        ),+
+        ]
+    }};
 
     ($(&$v:expr),+ $(,)?) => {
         {
@@ -641,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "preserve_order"))]
     fn descent_test() {
         let v1 = json!("reference");
         let v2 = json!("fiction");

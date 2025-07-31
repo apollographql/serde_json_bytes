@@ -106,11 +106,6 @@ impl<'de> Deserialize<'de> for Value {
                         let number: NumberFromString = visitor.next_value()?;
                         Ok(Value::Number(number.value))
                     }
-                    #[cfg(feature = "raw_value")]
-                    Some(KeyClass::RawValue) => {
-                        let value = visitor.next_value_seed(crate::raw::BoxedFromString)?;
-                        crate::from_str(value.get()).map_err(de::Error::custom)
-                    }
                     Some(KeyClass::Map(first_key)) => {
                         let mut values = Map::new();
 
@@ -301,15 +296,6 @@ impl<'de> serde::Deserializer<'de> for Value {
     where
         V: Visitor<'de>,
     {
-        #[cfg(feature = "raw_value")]
-        {
-            if name == crate::raw::TOKEN {
-                return visitor.visit_map(crate::raw::OwnedRawDeserializer {
-                    raw_value: Some(self.to_string()),
-                });
-            }
-        }
-
         let _ = name;
         visitor.visit_newtype_struct(self)
     }
@@ -491,10 +477,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Error> {
-        match self.value {
-            Some(value) => Deserialize::deserialize(value),
-            None => Ok(()),
-        }
+        self.value.map_or(Ok(()), Deserialize::deserialize)
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Error>
@@ -574,10 +557,9 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
     where
         T: DeserializeSeed<'de>,
     {
-        match self.iter.next() {
-            Some(value) => seed.deserialize(value).map(Some),
-            None => Ok(None),
-        }
+        self.iter
+            .next()
+            .map_or(Ok(None), |value| seed.deserialize(value).map(Some))
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -798,15 +780,6 @@ impl<'de> serde::Deserializer<'de> for &'de Value {
     where
         V: Visitor<'de>,
     {
-        #[cfg(feature = "raw_value")]
-        {
-            if name == crate::raw::TOKEN {
-                return visitor.visit_map(crate::raw::OwnedRawDeserializer {
-                    raw_value: Some(self.to_string()),
-                });
-            }
-        }
-
         let _ = name;
         visitor.visit_newtype_struct(self)
     }
@@ -977,10 +950,7 @@ impl<'de> VariantAccess<'de> for VariantRefDeserializer<'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Error> {
-        match self.value {
-            Some(value) => Deserialize::deserialize(value),
-            None => Ok(()),
-        }
+        self.value.map_or(Ok(()), Deserialize::deserialize)
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Error>
@@ -1001,7 +971,7 @@ impl<'de> VariantAccess<'de> for VariantRefDeserializer<'de> {
         V: Visitor<'de>,
     {
         match self.value {
-            Some(&Value::Array(ref v)) => {
+            Some(Value::Array(v)) => {
                 if v.is_empty() {
                     visitor.visit_unit()
                 } else {
@@ -1028,7 +998,7 @@ impl<'de> VariantAccess<'de> for VariantRefDeserializer<'de> {
         V: Visitor<'de>,
     {
         match self.value {
-            Some(&Value::Object(ref v)) => visit_object_ref(v, visitor),
+            Some(Value::Object(v)) => visit_object_ref(v, visitor),
             Some(other) => Err(serde::de::Error::invalid_type(
                 other.unexpected(),
                 &"struct variant",
@@ -1058,10 +1028,9 @@ impl<'de> SeqAccess<'de> for SeqRefDeserializer<'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        match self.iter.next() {
-            Some(value) => seed.deserialize(value).map(Some),
-            None => Ok(None),
-        }
+        self.iter
+            .next()
+            .map_or(Ok(None), |value| seed.deserialize(value).map(Some))
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -1214,8 +1183,6 @@ enum KeyClass {
     Map(String),
     #[cfg(feature = "arbitrary_precision")]
     Number,
-    #[cfg(feature = "raw_value")]
-    RawValue,
 }
 
 impl<'de> DeserializeSeed<'de> for KeyClassifier {
@@ -1243,8 +1210,6 @@ impl<'de> Visitor<'de> for KeyClassifier {
         match s {
             #[cfg(feature = "arbitrary_precision")]
             crate::number::TOKEN => Ok(KeyClass::Number),
-            #[cfg(feature = "raw_value")]
-            crate::raw::TOKEN => Ok(KeyClass::RawValue),
             _ => Ok(KeyClass::Map(s.to_owned())),
         }
     }
@@ -1257,8 +1222,6 @@ impl<'de> Visitor<'de> for KeyClassifier {
         match s.as_str() {
             #[cfg(feature = "arbitrary_precision")]
             crate::number::TOKEN => Ok(KeyClass::Number),
-            #[cfg(feature = "raw_value")]
-            crate::raw::TOKEN => Ok(KeyClass::RawValue),
             _ => Ok(KeyClass::Map(s)),
         }
     }
@@ -1302,7 +1265,7 @@ struct BorrowedCowStrDeserializer<'de> {
 }
 
 impl<'de> BorrowedCowStrDeserializer<'de> {
-    fn new(value: Cow<'de, str>) -> Self {
+    const fn new(value: Cow<'de, str>) -> Self {
         BorrowedCowStrDeserializer { value }
     }
 }

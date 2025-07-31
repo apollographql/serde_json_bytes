@@ -101,9 +101,6 @@ pub use self::index::Index;
 pub use self::ser::Serializer;
 pub use crate::map::Map;
 
-#[cfg(feature = "raw_value")]
-pub use crate::raw::{to_raw_value, RawValue};
-
 /// Represents any valid JSON value.
 ///
 /// See the [`serde_json::value` module documentation](self) for usage examples.
@@ -239,7 +236,7 @@ impl fmt::Display for Value {
         fn io_error(_: fmt::Error) -> std::io::Error {
             // Error value does not matter because Display impl just maps it
             // back to fmt::Error.
-            std::io::Error::new(std::io::ErrorKind::Other, "fmt error")
+            std::io::Error::other("fmt error")
         }
 
         let alternate = f.alternate();
@@ -361,7 +358,7 @@ impl Value {
     /// // The array `["an", "array"]` is not an object.
     /// assert_eq!(v["b"].as_object(), None);
     /// ```
-    pub fn as_object(&self) -> Option<&Map<ByteString, Value>> {
+    pub const fn as_object(&self) -> Option<&Map<ByteString, Value>> {
         match *self {
             Value::Object(ref map) => Some(map),
             _ => None,
@@ -420,9 +417,9 @@ impl Value {
     /// // The object `{"an": "object"}` is not an array.
     /// assert_eq!(v["b"].as_array(), None);
     /// ```
-    pub fn as_array(&self) -> Option<&Vec<Value>> {
+    pub const fn as_array(&self) -> Option<&Vec<Value>> {
         match *self {
-            Value::Array(ref array) => Some(&*array),
+            Value::Array(ref array) => Some(array),
             _ => None,
         }
     }
@@ -506,11 +503,8 @@ impl Value {
     /// // The string `"2"` is a string, not a number.
     /// assert!(!v["b"].is_number());
     /// ```
-    pub fn is_number(&self) -> bool {
-        match *self {
-            Value::Number(_) => true,
-            _ => false,
-        }
+    pub const fn is_number(&self) -> bool {
+        matches!(*self, Value::Number(_))
     }
 
     /// Returns true if the `Value` is an integer between `i64::MIN` and
@@ -681,7 +675,7 @@ impl Value {
     /// // The string `"false"` is a string, not a boolean.
     /// assert_eq!(v["b"].as_bool(), None);
     /// ```
-    pub fn as_bool(&self) -> Option<bool> {
+    pub const fn as_bool(&self) -> Option<bool> {
         match *self {
             Value::Bool(b) => Some(b),
             _ => None,
@@ -719,7 +713,7 @@ impl Value {
     /// // The boolean `false` is not null.
     /// assert_eq!(v["b"].as_null(), None);
     /// ```
-    pub fn as_null(&self) -> Option<()> {
+    pub const fn as_null(&self) -> Option<()> {
         match *self {
             Value::Null => Some(()),
             _ => None,
@@ -834,7 +828,7 @@ impl Value {
     /// assert_eq!(v["x"].take(), json!("y"));
     /// assert_eq!(v, json!({ "x": null }));
     /// ```
-    pub fn take(&mut self) -> Value {
+    pub const fn take(&mut self) -> Value {
         mem::replace(self, Value::Null)
     }
 

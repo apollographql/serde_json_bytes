@@ -2,23 +2,23 @@ use super::Value;
 use crate::lib::*;
 
 fn eq_i64(value: &Value, other: i64) -> bool {
-    value.as_i64().map_or(false, |i| i == other)
+    value.as_i64() == Some(other)
 }
 
 fn eq_u64(value: &Value, other: u64) -> bool {
-    value.as_u64().map_or(false, |i| i == other)
+    value.as_u64() == Some(other)
 }
 
 fn eq_f64(value: &Value, other: f64) -> bool {
-    value.as_f64().map_or(false, |i| i == other)
+    value.as_f64() == Some(other)
 }
 
 fn eq_bool(value: &Value, other: bool) -> bool {
-    value.as_bool().map_or(false, |i| i == other)
+    value.as_bool() == Some(other)
 }
 
 fn eq_str(value: &Value, other: &str) -> bool {
-    value.as_str().map_or(false, |i| i == other)
+    value.as_str() == Some(other)
 }
 
 impl PartialEq<str> for Value {
@@ -27,9 +27,9 @@ impl PartialEq<str> for Value {
     }
 }
 
-impl<'a> PartialEq<&'a str> for Value {
+impl PartialEq<&str> for Value {
     fn eq(&self, other: &&str) -> bool {
-        eq_str(self, *other)
+        eq_str(self, other)
     }
 }
 
@@ -39,9 +39,9 @@ impl PartialEq<Value> for str {
     }
 }
 
-impl<'a> PartialEq<Value> for &'a str {
+impl PartialEq<Value> for &str {
     fn eq(&self, other: &Value) -> bool {
-        eq_str(other, *self)
+        eq_str(other, self)
     }
 }
 

@@ -7,9 +7,8 @@ use lazy_static::lazy_static;
 use libfuzzer_sys::{fuzz_target, Corpus};
 
 lazy_static! {
-    static ref JSON: serde_json::Value = serde_json::from_str(&template_json()).unwrap();
-    static ref JSON_BYTES: serde_json_bytes::Value =
-        serde_json::from_str(&template_json()).unwrap();
+    static ref JSON: serde_json::Value = serde_json::from_str(template_json()).unwrap();
+    static ref JSON_BYTES: serde_json_bytes::Value = serde_json::from_str(template_json()).unwrap();
 }
 
 fuzz_target!(|path: String| -> Corpus {
@@ -38,11 +37,10 @@ fuzz_target!(|path: String| -> Corpus {
     let json_s = serde_json::to_string(&json_selected).unwrap();
     let json_bytes_s = serde_json::to_string(&json_bytes).unwrap();
 
-    assert_eq!(json_s, json_bytes_s, "from path: {}", path);
+    assert_eq!(json_s, json_bytes_s, "from path: {path}");
 
     Corpus::Keep
 });
-
 
 fn template_json<'a>() -> &'a str {
     r#" {"store": { "book": [

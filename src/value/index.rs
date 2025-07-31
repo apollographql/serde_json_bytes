@@ -66,10 +66,7 @@ impl Index for usize {
             Value::Array(ref mut vec) => {
                 let len = vec.len();
                 vec.get_mut(*self).unwrap_or_else(|| {
-                    panic!(
-                        "cannot access index {} of JSON array of length {}",
-                        self, len
-                    )
+                    panic!("cannot access index {self} of JSON array of length {len}")
                 })
             }
             _ => panic!("cannot access index {} of JSON {}", self, Type(v)),
@@ -91,7 +88,7 @@ impl Index for str {
         }
     }
     fn index_or_insert<'v>(&self, v: &'v mut Value) -> &'v mut Value {
-        if let Value::Null = *v {
+        if v.is_null() {
             *v = Value::Object(Map::new());
         }
         match *v {
@@ -113,7 +110,7 @@ impl Index for String {
     }
 }
 
-impl<'a, T> Index for &'a T
+impl<T> Index for &T
 where
     T: ?Sized + Index,
 {
@@ -134,7 +131,7 @@ mod private {
     impl Sealed for usize {}
     impl Sealed for str {}
     impl Sealed for super::String {}
-    impl<'a, T> Sealed for &'a T where T: ?Sized + Sealed {}
+    impl<T> Sealed for &T where T: ?Sized + Sealed {}
 }
 
 /// Used in panic messages.

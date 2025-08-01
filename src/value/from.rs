@@ -95,7 +95,7 @@ impl From<String> for Value {
     }
 }
 
-impl<'a> From<&'a str> for Value {
+impl From<&str> for Value {
     /// Convert string slice to `Value`
     ///
     /// # Examples
@@ -202,7 +202,7 @@ impl<'a, T: Clone + Into<Value>> From<&'a [T]> for Value {
 }
 
 impl<T: Into<Value>> FromIterator<T> for Value {
-    /// Convert an iteratable type to a `Value`
+    /// Convert an iterable type to a `Value`
     ///
     /// # Examples
     ///
@@ -232,7 +232,7 @@ impl<T: Into<Value>> FromIterator<T> for Value {
 }
 
 impl<K: Into<ByteString>, V: Into<Value>> FromIterator<(K, V)> for Value {
-    /// Convert an iteratable type to a `Value`
+    /// Convert an iterable type to a `Value`
     ///
     /// # Examples
     ///
@@ -253,10 +253,7 @@ impl<K: Into<ByteString>, V: Into<Value>> FromIterator<(K, V)> for Value {
 
 impl<T: Into<Value>> From<Option<T>> for Value {
     fn from(opt: Option<T>) -> Self {
-        match opt {
-            Some(value) => value.into(),
-            None => Value::Null,
-        }
+        opt.map_or(Value::Null, Into::into)
     }
 }
 

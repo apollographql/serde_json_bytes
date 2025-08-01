@@ -5,6 +5,7 @@ extern crate alloc;
 /// crates. This avoids elaborate import wrangling having to happen in every
 /// module.
 mod lib {
+    #![allow(unused_imports)]
     mod core {
         #[cfg(not(feature = "std"))]
         pub use core::*;

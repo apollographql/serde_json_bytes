@@ -21,7 +21,7 @@ impl ByteString {
         unsafe { std::str::from_utf8_unchecked(&self.0) }
     }
 
-    pub fn inner(&self) -> &Bytes {
+    pub const fn inner(&self) -> &Bytes {
         &self.0
     }
 }

@@ -104,7 +104,6 @@ impl Map<ByteString, Value> {
     /// The key may be any borrowed form of the map's key type, but the ordering
     /// on the borrowed form *must* match the ordering on the key type.
     #[inline]
-    #[cfg(any(feature = "preserve_order", not(no_btreemap_get_key_value)))]
     pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&ByteString, &Value)>
     where
         ByteString: Borrow<Q>,
@@ -154,49 +153,17 @@ impl Map<ByteString, Value> {
         ByteString: Borrow<Q>,
         Q: ?Sized + Ord + Eq + Hash,
     {
-        #[cfg(any(feature = "preserve_order", not(no_btreemap_remove_entry)))]
+        #[cfg(feature = "preserve_order")]
+        return self.map.swap_remove_entry(key);
+        #[cfg(not(feature = "preserve_order"))]
         return self.map.remove_entry(key);
-        #[cfg(all(
-            not(feature = "preserve_order"),
-            no_btreemap_remove_entry,
-            not(no_btreemap_get_key_value),
-        ))]
-        {
-            let (key, _value) = self.map.get_key_value(key)?;
-            let key = key.clone();
-            let value = self.map.remove::<ByteString>(&key)?;
-            Some((key, value))
-        }
-        #[cfg(all(
-            not(feature = "preserve_order"),
-            no_btreemap_remove_entry,
-            no_btreemap_get_key_value,
-        ))]
-        {
-            struct Key<'a, Q: ?Sized>(&'a Q);
-
-            impl<'a, Q: ?Sized> RangeBounds<Q> for Key<'a, Q> {
-                fn start_bound(&self) -> Bound<&Q> {
-                    Bound::Included(self.0)
-                }
-                fn end_bound(&self) -> Bound<&Q> {
-                    Bound::Included(self.0)
-                }
-            }
-
-            let mut range = self.map.range(Key(key));
-            let (key, _value) = range.next()?;
-            let key = key.clone();
-            let value = self.map.remove::<ByteString>(&key)?;
-            Some((key, value))
-        }
     }
 
     /// Moves all elements from other into Self, leaving other empty.
     #[inline]
     pub fn append(&mut self, other: &mut Self) {
         #[cfg(feature = "preserve_order")]
-        for (k, v) in mem::replace(&mut other.map, MapImpl::default()) {
+        for (k, v) in std::mem::take(&mut other.map) {
             self.map.insert(k, v);
         }
         #[cfg(not(feature = "preserve_order"))]
@@ -276,7 +243,6 @@ impl Map<ByteString, Value> {
     ///
     /// In other words, remove all pairs `(k, v)` such that `f(&k, &mut v)`
     /// returns `false`.
-    #[cfg(not(no_btreemap_retain))]
     #[inline]
     pub fn retain<F>(&mut self, f: F)
     where
@@ -348,7 +314,7 @@ impl<K: Hash, V: Hash> Hash for Map<K, V> {
 /// }
 /// # ;
 /// ```
-impl<'a, Q> ops::Index<&'a Q> for Map<ByteString, Value>
+impl<Q> ops::Index<&Q> for Map<ByteString, Value>
 where
     ByteString: Borrow<Q>,
     Q: ?Sized + Ord + Eq + Hash,
@@ -371,7 +337,7 @@ where
 /// #
 /// map["key"] = json!("value");
 /// ```
-impl<'a, Q> ops::IndexMut<&'a Q> for Map<ByteString, Value>
+impl<Q> ops::IndexMut<&Q> for Map<ByteString, Value>
 where
     ByteString: Borrow<Q>,
     Q: ?Sized + Ord + Eq + Hash,

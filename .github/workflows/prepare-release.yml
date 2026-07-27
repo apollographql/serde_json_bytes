@@ -1,0 +1,81 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New version to release, e.g. 0.2.6 (bare semver, no leading 'v')"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare-release:
+    name: Bump version and open release PR
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate version is bare semver
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$VERSION' is not a valid bare semver version (expected e.g. 0.2.6)."
+            exit 1
+          fi
+
+      - name: Reject if this version is already tagged
+        run: |
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::Tag '$VERSION' already exists."
+            exit 1
+          fi
+
+      - name: Reject if not greater than the published crates.io version
+        run: |
+          published=$(curl -sf https://crates.io/api/v1/crates/serde_json_bytes | python3 -c "import json,sys; print(json.load(sys.stdin)['crate']['max_version'])")
+          echo "Currently published on crates.io: $published"
+          python3 - "$VERSION" "$published" <<'PYEOF'
+          import sys
+          new = tuple(int(x) for x in sys.argv[1].split("."))
+          cur = tuple(int(x) for x in sys.argv[2].split("."))
+          if new <= cur:
+              print(f"::error::{sys.argv[1]} is not greater than the currently published version {sys.argv[2]}")
+              sys.exit(1)
+          PYEOF
+
+      - name: Bump version in Cargo.toml
+        run: |
+          sed -i -E "s/^version = \".*\"\$/version = \"$VERSION\"/" Cargo.toml
+          grep -m1 '^version = ' Cargo.toml
+
+      - name: Sanity-check the bump took effect
+        run: |
+          actual=$(cargo pkgid --manifest-path Cargo.toml | sed -E 's/.*[#:]//')
+          if [ "$actual" != "$VERSION" ]; then
+            echo "::error::Cargo.toml version is '$actual' after bump, expected '$VERSION'."
+            exit 1
+          fi
+
+      - name: Create branch, commit, and open PR
+        run: |
+          branch="release/$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add Cargo.toml
+          git commit -m "$VERSION"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore: release $VERSION" \
+            --body "Bumps \`Cargo.toml\` to \`$VERSION\`. Merging this PR does **not** publish the crate — after merge, run the **Publish Release** workflow to tag, \`cargo publish\`, and create the GitHub Release."

@@ -239,37 +239,17 @@ fn select_index<'value, 'path: 'value>(
                 let mut index = None;
                 let len = a.len();
                 let start = if *start >= 0 {
-                    let start = *start as usize;
-                    if start > len {
-                        return Box::new(empty());
-                    } else {
-                        start
-                    }
+                    (*start as usize).min(len)
                 } else {
-                    let start = -*start as usize;
-                    if start > len {
-                        return Box::new(empty());
-                    } else {
-                        len - start
-                    }
+                    len.saturating_sub(-*start as usize)
                 };
 
                 let end = if *end == 0 {
                     len
                 } else if *end > 0 {
-                    let end = *end as usize;
-                    if end > len {
-                        return Box::new(empty());
-                    } else {
-                        end
-                    }
+                    (*end as usize).min(len)
                 } else {
-                    let end = -*end as usize;
-                    if end > len {
-                        return Box::new(empty());
-                    } else {
-                        len - end
-                    }
+                    len.saturating_sub(-*end as usize)
                 };
 
                 Box::new(
@@ -819,6 +799,68 @@ mod tests {
         );
         test(template_json(), "$.array[-1:]", jp_v![&j9;&i9,]);
         test(template_json(), "$.array[-2:-1]", jp_v![&j8;&i8,]);
+
+        // out-of-range bounds should clamp, not return empty (ROUTER-2032)
+        test(
+            template_json(),
+            "$.array[:20]",
+            jp_v![
+                &j0;&i0,
+                &j1;&i1,
+                &j2;&i2,
+                &j3;&i3,
+                &j4;&i4,
+                &j5;&i5,
+                &j6;&i6,
+                &j7;&i7,
+                &j8;&i8,
+                &j9;&i9,],
+        );
+        test(
+            template_json(),
+            "$.array[0:20]",
+            jp_v![
+                &j0;&i0,
+                &j1;&i1,
+                &j2;&i2,
+                &j3;&i3,
+                &j4;&i4,
+                &j5;&i5,
+                &j6;&i6,
+                &j7;&i7,
+                &j8;&i8,
+                &j9;&i9,],
+        );
+        test(template_json(), "$.array[20:]", vec![]);
+        test(
+            template_json(),
+            "$.array[-20:]",
+            jp_v![
+                &j0;&i0,
+                &j1;&i1,
+                &j2;&i2,
+                &j3;&i3,
+                &j4;&i4,
+                &j5;&i5,
+                &j6;&i6,
+                &j7;&i7,
+                &j8;&i8,
+                &j9;&i9,],
+        );
+        test(template_json(), "$.array[:-20]", vec![]);
+
+        // a short array with an end bound past its length should return all elements
+        let k0 = json!(0);
+        let k1 = json!(1);
+        let k2 = json!(2);
+        test(
+            r#"{"short":[0,1,2]}"#,
+            "$.short[:10]",
+            jp_v![
+                &k0;"$.['short'][0]",
+                &k1;"$.['short'][1]",
+                &k2;"$.['short'][2]",],
+        );
     }
 
     #[test]

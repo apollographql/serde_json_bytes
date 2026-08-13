@@ -20,8 +20,7 @@ every other merge into `main`.
 
 ## Versioning
 
-Versions are bare semver with no `v` prefix (e.g. `0.2.6`, not `v0.2.6`), matching all
-existing tags (`0.1.0` through `0.2.4`).
+Versions are bare semver with no `v` prefix — e.g. `0.2.6`, not `v0.2.6`.
 
 ## Step by step
 
@@ -31,14 +30,20 @@ existing tags (`0.1.0` through `0.2.4`).
    - This validates the version, bumps `Cargo.toml` on a new `release/<version>` branch,
      and opens a PR titled `chore: release <version>`.
 3. Review and merge that PR into `main`.
-   - Note: GitHub's loop-prevention means the `rust.yaml` CI job (fmt/clippy/build/test)
-     likely won't automatically run against this bot-authored PR. That's expected and
-     won't block the merge, since this repo's required status checks are the CircleCI
-     security scans, not that job.
+   - The PR is authored by `github-actions[bot]`, which GitHub treats specially: the
+     `rust.yaml` run is created but parked as `action_required` pending manual approval,
+     and CircleCI doesn't fire at all — so the required `gitleaks` and `semgrep` checks
+     are missing and the PR is blocked.
+   - Simplest fix is to push an empty commit to the release branch yourself. A push from
+     a human actor wakes both systems and everything goes green:
+     `git commit --allow-empty -m "chore: trigger CI on release/<version>" && git push`
+   - You also can't approve your own release PR, so merging needs either another
+     reviewer or an admin override.
 4. Go to the **Actions** tab → **Publish Release** → **Run workflow** (no inputs needed)
    and run it.
-   - This requires approval from a `@apollographql/graphos` reviewer before it proceeds,
-     since it runs under the `release` Environment's required-reviewer protection.
+   - This requires approval from one of the `release` Environment's configured reviewers
+     before it proceeds, since it runs under that Environment's required-reviewer
+     protection. The reviewer list lives in Settings → Environments → `release`.
    - Once approved, it reads the version from `Cargo.toml` on `main`, creates and pushes a
      matching git tag, runs `cargo publish`, and creates a GitHub Release with
      auto-generated release notes.

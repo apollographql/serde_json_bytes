@@ -19,6 +19,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VERSION: ${{ inputs.version }}
+      # crates.io returns 403 unless the User-Agent identifies the caller —
+      # curl's default doesn't qualify, so every API call below sets one.
+      CRATES_IO_UA: "serde_json_bytes-release (github.com/apollographql/serde_json_bytes)"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +44,9 @@ jobs:
 
       - name: Reject if not greater than the published crates.io version
         run: |
-          published=$(curl -sf https://crates.io/api/v1/crates/serde_json_bytes | python3 -c "import json,sys; print(json.load(sys.stdin)['crate']['max_version'])")
+          response=$(curl -sS --fail-with-body -H "User-Agent: $CRATES_IO_UA" \
+            https://crates.io/api/v1/crates/serde_json_bytes)
+          published=$(printf '%s' "$response" | python3 -c "import json,sys; print(json.load(sys.stdin)['crate']['max_version'])")
           echo "Currently published on crates.io: $published"
           python3 - "$VERSION" "$published" <<'PYEOF'
           import sys

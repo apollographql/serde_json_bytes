@@ -64,7 +64,11 @@ jobs:
 
       - name: Sanity-check the bump took effect
         run: |
-          actual=$(cargo pkgid --manifest-path Cargo.toml | sed -E 's/.*[#:]//')
+          # Read the manifest directly rather than via `cargo pkgid`, which
+          # requires a Cargo.lock — this crate is a library and doesn't commit
+          # one, so pkgid can never resolve on a fresh checkout. This also
+          # matches how Publish Release reads the version back.
+          actual=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/^version = "(.*)"$/\1/')
           if [ "$actual" != "$VERSION" ]; then
             echo "::error::Cargo.toml version is '$actual' after bump, expected '$VERSION'."
             exit 1

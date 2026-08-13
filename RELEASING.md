@@ -37,12 +37,13 @@ Versions are bare semver with no `v` prefix — e.g. `0.2.6`, not `v0.2.6`.
    - Simplest fix is to push an empty commit to the release branch yourself. A push from
      a human actor wakes both systems and everything goes green:
      `git commit --allow-empty -m "chore: trigger CI on release/<version>" && git push`
-   - You also can't approve your own release PR, so merging needs either a second
-     `@apollographql/graphos` reviewer or an admin override.
+   - You also can't approve your own release PR, so merging needs either another
+     reviewer or an admin override.
 4. Go to the **Actions** tab → **Publish Release** → **Run workflow** (no inputs needed)
    and run it.
-   - This requires approval from a `@apollographql/graphos` reviewer before it proceeds,
-     since it runs under the `release` Environment's required-reviewer protection.
+   - This requires approval from one of the `release` Environment's configured reviewers
+     before it proceeds, since it runs under that Environment's required-reviewer
+     protection. The reviewer list lives in Settings → Environments → `release`.
    - Once approved, it reads the version from `Cargo.toml` on `main`, creates and pushes a
      matching git tag, runs `cargo publish`, and creates a GitHub Release with
      auto-generated release notes.

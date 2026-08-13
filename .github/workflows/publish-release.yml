@@ -16,6 +16,9 @@ jobs:
       id-token: write # required to mint a short-lived crates.io token via OIDC
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # crates.io returns 403 unless the User-Agent identifies the caller —
+      # curl's default doesn't qualify, so every API call below sets one.
+      CRATES_IO_UA: "serde_json_bytes-release (github.com/apollographql/serde_json_bytes)"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,12 +33,29 @@ jobs:
           echo "Publishing version: $version"
 
       - name: Reject if this version is already published on crates.io
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          version="${{ steps.version.outputs.version }}"
-          if curl -sf -o /dev/null "https://crates.io/api/v1/crates/serde_json_bytes/$version"; then
-            echo "::error::serde_json_bytes $version is already published on crates.io."
-            exit 1
-          fi
+          # Check the status code explicitly rather than relying on curl's exit
+          # status: anything other than a clean 404 must block the release, so
+          # that a transient error or a rejected request can't read as "not
+          # published yet" and let the publish proceed.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "User-Agent: $CRATES_IO_UA" \
+            "https://crates.io/api/v1/crates/serde_json_bytes/$VERSION")
+          case "$code" in
+            404)
+              echo "$VERSION is not yet published on crates.io — proceeding."
+              ;;
+            200)
+              echo "::error::serde_json_bytes $VERSION is already published on crates.io."
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected status $code from crates.io while checking whether $VERSION is published."
+              exit 1
+              ;;
+          esac
 
       - name: Create and push tag
         run: |

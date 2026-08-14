@@ -8,7 +8,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-jsonpath-rust = "0.3.5"
+jsonpath-rust = "0.7.0"
 libfuzzer-sys = "0.4.7"
 serde_json_bytes = { path = "..", features = ["preserve_order"] }
 serde_json = { version = "1.0.117", features = ["preserve_order"] }
